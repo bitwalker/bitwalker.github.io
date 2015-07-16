@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Learn by Example: Scala Parser Combinators &#8211; bitwalker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Stuff about things.">
+    <meta name="author" content="Paul Schoenfelder">
+    <meta name="keywords" content="scala, programming, tutorial">
+    <link rel="canonical" href="/scala/programming/tutorial/2013/08/10/learn-by-example-scala-parser-combinators/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for bitwalker" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?201507160331" type="text/css">
+
+    <!-- Fonts -->
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Learn by Example: Scala Parser Combinators">
+    <meta property="og:description" content="Stuff about things.">
+    <meta property="og:url" content="/scala/programming/tutorial/2013/08/10/learn-by-example-scala-parser-combinators/">
+    <meta property="og:site_name" content="bitwalker">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@gotbones" />
+    
+    <meta name="twitter:title" content="Learn by Example: Scala Parser Combinators" />
+    <meta name="twitter:description" content="Stuff about things." />
+    <meta name="twitter:url" content="/scala/programming/tutorial/2013/08/10/learn-by-example-scala-parser-combinators/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+        
+    
+</head>
+
+<body class="site">
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="" class="site-title">bitwalker</a>
+      <nav class="site-nav">
+        <a href="/about/">About</a>
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>Learn by Example: Scala Parser Combinators</h1>
+  <span class="post-meta">Aug 10, 2013</span><br>
+    
+  <span class="post-meta small">
+  
+    18 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>One of the more common things you run into during software development is the need to parse arbitrary text for data.
+Typically, you might use regular expressions, or encode assumptions about the data format in the way you parse the text (think slicing a string at specific indices, splitting on commas, etc). Both of these are brittle, and require a lot of verbose code to properly handle all of the possible failure points. This might lead you to writing your own parser if you are committed enough - but this is a large undertaking for most developers. You have to learn how to write a parser, or learn a parser generator in order to even begin coding the solution to your particular use case. Scala has a fantastic solution to this problem however, and that solution is parser combinators.</p>
+
+<!-- more -->
+
+<h2 id="what-are-parser-combinators">What Are Parser Combinators</h2>
+
+<p>Let’s start first by breaking down the term into it’s parts, parsers and combinators, and explaining what they are in case you aren’t up to speed. A parser is a function that takes a stream of input tokens, and converts them into a format (typically a data structure, such as a list or a tree) that is more easily consumed by your application. A combinator is simply a higher order function which combines two functions into a new function. So a parser combinator is just a function which combines two parsers into another parser.</p>
+
+<h2 id="how-to-use-them">How To Use Them</h2>
+
+<p>We are going to build a <a href="http://en.wikipedia.org/wiki/Reverse_Polish_notation">Reverse Polish Notation</a> calculator as an example of how to apply parser combinators to a problem, so let’s start simple and build up. First, I want to go over the available combinators we’re going to use in this example:</p>
+
+<ul>
+  <li><code>|</code> is the alternation combinator. It says “succeed if either the left or right operand parse successfully”</li>
+  <li><code>~</code> is the sequential combinator. It says “succeed if the left operand parses successfully, and then the right parses successfully on the remaining input”</li>
+  <li><code>~&gt;</code> says “succeed if the left operand parses successfully followed by the right, but do not include the left content in the result”</li>
+  <li><code>&lt;~</code> is the reverse, “succeed if the left operand is parsed successfully followed by the right, but do not include the right content in the result”</li>
+  <li><code>^^</code>=&gt; is the transformation combinator. It says “if the left operand parses successfully, transform the result using the function on the right”</li>
+  <li><code>rep</code> =&gt; simply says “expect N-many repetitions of parser X” where X is the parser passed as an argument to <code>rep</code></li>
+</ul>
+
+<p>Now that we’ve covered what the available combinators are, our first step is to define how to parse a number:</p>
+
+<div class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="k">import</span> <span class="nn">scala.util.parsing.combinator._</span>
+
+<span class="k">class</span> <span class="nc">ReversePolishCalculator</span> <span class="k">extends</span> <span class="nc">JavaTokenParsers</span> <span class="o">{</span>
+    <span class="k">def</span> <span class="n">num</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="n">floatingPointNumber</span> <span class="o">^^</span> <span class="o">(</span><span class="k">_</span><span class="o">.</span><span class="n">toFloat</span><span class="o">)</span>
+<span class="o">}</span></code></pre></div>
+
+<p>So, we import the parser combinators, and create a class with just our number parser for now. We extend JavaTokenParsers in order to bake in the ability to parse some text, and to gain access to the <code>floatingPointNumber</code> parser. The <code>num</code> function will match any floating point number, and convert it to a Float. The <code>floatingPointNumber</code> parser simply matches text, it doesn’t do any conversion. If you were to look at the source for it, you would see that it is simply a regular expression parser:</p>
+
+<div class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="k">trait</span> <span class="nc">JavaTokenParsers</span> <span class="k">extends</span> <span class="nc">RegexParsers</span> <span class="o">{</span>
+    <span class="k">def</span> <span class="n">floatingPointNumber</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+        <span class="s">"""-?(\d+(\.\d*)?|\d*\.\d+)([eE][+-]?\d+)?[fFdD]?"""</span><span class="o">.</span><span class="n">r</span>
+    <span class="o">}</span>
+<span class="o">}</span></code></pre></div>
+
+<p>So at this point, our parser can match a number, that’s it. If that’s all we wanted, we could wire up a quick console app to parse floats like so:</p>
+
+<div class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="k">object</span> <span class="nc">Calculator</span> <span class="k">extends</span> <span class="nc">ReversePolishCalculator</span> <span class="o">{</span>
+    <span class="k">def</span> <span class="n">main</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="o">{</span>
+        <span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="n">parseAll</span><span class="o">(</span><span class="n">num</span><span class="o">,</span> <span class="n">args</span><span class="o">(</span><span class="mi">0</span><span class="o">))</span>
+        <span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Parsed $result"</span><span class="o">)</span>
+    <span class="o">}</span>
+<span class="o">}</span></code></pre></div>
+
+<p>This is mostly useless obviously, so let’s move on and define how to parse the operators our calculator can use:</p>
+
+<div class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="k">class</span> <span class="nc">ReversePolishCalculator</span> <span class="k">extends</span> <span class="nc">JavaTokenParsers</span> <span class="o">{</span>
+    <span class="k">def</span> <span class="n">num</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="n">floatingPointNumber</span> <span class="o">^^</span> <span class="o">(</span><span class="k">_</span><span class="o">.</span><span class="n">toFloat</span><span class="o">)</span>
+    <span class="k">def</span> <span class="n">operator</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[(</span><span class="kt">Float</span>, <span class="kt">Float</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="o">(</span><span class="s">"*"</span> <span class="o">|</span> <span class="s">"/"</span> <span class="o">|</span> <span class="s">"+"</span> <span class="o">|</span> <span class="s">"-"</span><span class="o">)</span> <span class="o">^^</span> <span class="o">{</span>
+        <span class="k">case</span> <span class="s">"+"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+        <span class="k">case</span> <span class="s">"-"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span>
+        <span class="k">case</span> <span class="s">"*"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="k">case</span> <span class="s">"/"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">(</span><span class="n">x</span> <span class="o">/</span> <span class="n">y</span><span class="o">)</span> <span class="k">else</span> <span class="mf">0.f</span>
+    <span class="o">}</span>
+<span class="o">}</span></code></pre></div>
+
+<p>The <code>operator</code> parser matches any of the operators listed, in the order they are specified - which is fantastic when you think about it, because we were able to encode the correct order of operations in the very same code which defines the operators themselves! This parser then transforms the operator into a function which maps two floats to a single float - which sounds an awful lot like how you would expect mathematical operations to work (applying an operator, or function, over two operands). We haven’t connected the dots just yet, but these two parsers are the cornerstone of the rest we will be adding. The next step is to define the property of Reverse Polish Notation that allows us to have N-many numbers before an operator (ex: <code>5 1 2 + 4 * 3 -</code>). The parser for this is simple:</p>
+
+<div class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="k">class</span> <span class="nc">ReversePolishCalculator</span> <span class="k">extends</span> <span class="nc">JavaTokenParsers</span> <span class="o">{</span>
+    <span class="k">def</span> <span class="n">term</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Float</span><span class="o">]]</span> <span class="k">=</span> <span class="n">rep</span><span class="o">(</span><span class="n">num</span><span class="o">)</span>
+    <span class="k">def</span> <span class="n">num</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="n">floatingPointNumber</span> <span class="o">^^</span> <span class="o">(</span><span class="k">_</span><span class="o">.</span><span class="n">toFloat</span><span class="o">)</span>
+    <span class="k">def</span> <span class="n">operator</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[(</span><span class="kt">Float</span>, <span class="kt">Float</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="o">(</span><span class="s">"*"</span> <span class="o">|</span> <span class="s">"/"</span> <span class="o">|</span> <span class="s">"+"</span> <span class="o">|</span> <span class="s">"-"</span><span class="o">)</span> <span class="o">^^</span> <span class="o">{</span>
+        <span class="k">case</span> <span class="s">"+"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+        <span class="k">case</span> <span class="s">"-"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span>
+        <span class="k">case</span> <span class="s">"*"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="k">case</span> <span class="s">"/"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">(</span><span class="n">x</span> <span class="o">/</span> <span class="n">y</span><span class="o">)</span> <span class="k">else</span> <span class="mf">0.f</span>
+    <span class="o">}</span>
+<span class="o">}</span></code></pre></div>
+
+<p>The <code>term</code> function simply states that it will parse N-many floating point values (<code>rep</code> stands for repeat), and return a list of floats as a result. We’re getting close to our final product here, the final step is to define how to parse mathematical expressions which our calculator can understand:</p>
+
+<div class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="k">class</span> <span class="nc">ReversePolishCalculator</span> <span class="k">extends</span> <span class="nc">JavaTokenParsers</span> <span class="o">{</span>
+    <span class="k">def</span> <span class="n">expr</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="n">rep</span><span class="o">(</span><span class="n">term</span> <span class="o">~</span> <span class="n">operator</span><span class="o">)</span> <span class="o">^^</span> <span class="o">{</span>
+        <span class="c1">// match a list of term~operator
+</span>        <span class="k">case</span> <span class="n">terms</span> <span class="k">=&gt;</span>
+            <span class="c1">// Each operand will be placed on the stack, and pairs will be popped off for each operation,
+</span>            <span class="c1">// replacing the pair with the result of the operation. Calculation ends when the final operator
+</span>            <span class="c1">// is applied to all remaining operands
+</span>            <span class="k">var</span> <span class="n">stack</span>  <span class="k">=</span> <span class="nc">List</span><span class="o">.</span><span class="n">empty</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span>
+            <span class="c1">// Remember the last operation performed, default to addition
+</span>            <span class="k">var</span> <span class="n">lastOp</span><span class="k">:</span> <span class="o">(</span><span class="kt">Float</span><span class="o">,</span> <span class="kt">Float</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Float</span> <span class="k">=</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+            <span class="n">terms</span><span class="o">.</span><span class="n">foreach</span><span class="o">(</span><span class="n">t</span> <span class="k">=&gt;</span>
+                <span class="c1">// match on the operator to perform the appropriate calculation
+</span>                <span class="n">t</span> <span class="k">match</span> <span class="o">{</span>
+                    <span class="c1">// append the operands to the stack, and reduce the pair at the top using the current operator
+</span>                    <span class="k">case</span> <span class="n">nums</span> <span class="o">~</span> <span class="n">op</span> <span class="k">=&gt;</span> <span class="n">lastOp</span> <span class="k">=</span> <span class="n">op</span><span class="o">;</span> <span class="n">stack</span> <span class="k">=</span> <span class="n">reduce</span><span class="o">(</span><span class="n">stack</span> <span class="o">++</span> <span class="n">nums</span><span class="o">,</span> <span class="n">op</span><span class="o">)</span>
+                <span class="o">}</span>
+            <span class="o">)</span>
+            <span class="c1">// Apply the last operation to all remaining operands
+</span>            <span class="n">stack</span><span class="o">.</span><span class="n">reduceRight</span><span class="o">((</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">lastOp</span><span class="o">(</span><span class="n">y</span><span class="o">,</span> <span class="n">x</span><span class="o">))</span>
+    <span class="o">}</span>
+    <span class="k">def</span> <span class="n">term</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Float</span><span class="o">]]</span> <span class="k">=</span> <span class="n">rep</span><span class="o">(</span><span class="n">num</span><span class="o">)</span>
+    <span class="k">def</span> <span class="n">num</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="n">floatingPointNumber</span> <span class="o">^^</span> <span class="o">(</span><span class="k">_</span><span class="o">.</span><span class="n">toFloat</span><span class="o">)</span>
+    <span class="k">def</span> <span class="n">operator</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[(</span><span class="kt">Float</span>, <span class="kt">Float</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="o">(</span><span class="s">"*"</span> <span class="o">|</span> <span class="s">"/"</span> <span class="o">|</span> <span class="s">"+"</span> <span class="o">|</span> <span class="s">"-"</span><span class="o">)</span> <span class="o">^^</span> <span class="o">{</span>
+        <span class="k">case</span> <span class="s">"+"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+        <span class="k">case</span> <span class="s">"-"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span>
+        <span class="k">case</span> <span class="s">"*"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>
+        <span class="k">case</span> <span class="s">"/"</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="k">if</span> <span class="o">(</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">(</span><span class="n">x</span> <span class="o">/</span> <span class="n">y</span><span class="o">)</span> <span class="k">else</span> <span class="mf">0.f</span>
+    <span class="o">}</span>
+
+    <span class="c1">// Reduces a stack of numbers by popping the last pair off the stack, applying op, and pushing the result
+</span>    <span class="k">def</span> <span class="n">reduce</span><span class="o">(</span><span class="n">nums</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Float</span><span class="o">],</span> <span class="n">op</span><span class="k">:</span> <span class="o">(</span><span class="kt">Float</span><span class="o">,</span> <span class="kt">Float</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Float</span><span class="o">)</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+        <span class="c1">// Reversing the list lets us use pattern matching to destructure the list safely
+</span>        <span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="n">nums</span><span class="o">.</span><span class="n">reverse</span> <span class="k">match</span> <span class="o">{</span>
+            <span class="c1">// Has at least two numbers at the end
+</span>            <span class="k">case</span> <span class="n">x</span> <span class="o">::</span> <span class="n">y</span> <span class="o">::</span> <span class="n">xs</span> <span class="k">=&gt;</span> <span class="n">xs</span> <span class="o">++</span> <span class="nc">List</span><span class="o">(</span><span class="n">op</span><span class="o">(</span><span class="n">y</span><span class="o">,</span> <span class="n">x</span><span class="o">))</span>
+            <span class="c1">// List of only one number
+</span>            <span class="k">case</span> <span class="nc">List</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>      <span class="k">=&gt;</span> <span class="nc">List</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+            <span class="c1">// Empty list
+</span>            <span class="k">case</span> <span class="k">_</span>            <span class="k">=&gt;</span> <span class="nc">List</span><span class="o">.</span><span class="n">empty</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span>
+        <span class="o">}</span>
+        <span class="n">result</span>
+    <span class="o">}</span>
+<span class="o">}</span></code></pre></div>
+
+<p>The comments explain the internals, but from a high level, our <code>expr</code> parser states that it expects any number of floating point values (<code>term</code>), followed by an operator (<code>~</code> says that the left operand must be followed by the right operand in order to match), and that this term-followed-by-operator pair can repeat any number of times. Without the <code>rep</code>, an expression could only consist of a set of numbers followed by a single operator - not very useful. With, it allows us to have multiple operations strung together (essentially, the difference between <code>5 1 2 +</code> and <code>5 1 2 + 4 * 3-</code>). The internals are less important, but in order to fufill the semantics of Reverse Polish Notation, operands are added to a stack as they are encountered, and for each operator encountered, the last two operands are popped off the stack, and replaced with the result of applying the operator. If there are more than two operands remaining when the last operator is encountered, we just apply that operator to each pair of operands until only the final result remains.</p>
+
+<p>If you are new to Scala, the <code>reduce</code> helper I added should be rather interesting to you (well, this whole article should..). If you haven’t witnessed the power of pattern matching before, this is a prime example of the kind of expressive power it contains. It is very simple and easy to read what we are doing here: reverse the list we are using as a stack, and if it contains two elements (x and y) followed by any number of other elements (xs), apply the operator function to x and y and put it back on the stack. If it’s a list of one element, do nothing, and if the stack doesn’t match those two states, it must be (or should be) empty. In many other languages, this kind of code would be much messier, and far more error prone.</p>
+
+<h2 id="the-final-product">The Final Product</h2>
+
+<p>The final, executable version of our Reverse Polish Notation calculator would look like the following after refactoring it to be more idiotmatic Scala:</p>
+
+<div class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="k">import</span> <span class="nn">scala.util.parsing.combinator._</span>
+
+<span class="cm">/**
+ * This trait provides the mathematical operations which the calculator can perform.
+ */</span>
+<span class="k">trait</span> <span class="nc">Maths</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">add</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Float</span><span class="o">,</span> <span class="n">y</span><span class="k">:</span> <span class="kt">Float</span><span class="o">)</span> <span class="k">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+  <span class="k">def</span> <span class="n">sub</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Float</span><span class="o">,</span> <span class="n">y</span><span class="k">:</span> <span class="kt">Float</span><span class="o">)</span> <span class="k">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span>
+  <span class="k">def</span> <span class="n">mul</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Float</span><span class="o">,</span> <span class="n">y</span><span class="k">:</span> <span class="kt">Float</span><span class="o">)</span> <span class="k">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>
+  <span class="k">def</span> <span class="n">div</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Float</span><span class="o">,</span> <span class="n">y</span><span class="k">:</span> <span class="kt">Float</span><span class="o">)</span> <span class="k">=</span> <span class="k">if</span> <span class="o">(</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="o">(</span><span class="n">x</span> <span class="o">/</span> <span class="n">y</span><span class="o">)</span> <span class="k">else</span> <span class="mf">0.0f</span>
+<span class="o">}</span>
+
+<span class="cm">/**
+ * This class is the complete Reverse Polish parser and calculator
+ * JavaTokenParsers is extended in order to use the floatingPointNumber parser
+ * Maths is extended to provide the underlying mathematical operations
+ */</span>
+<span class="k">class</span> <span class="nc">ReversePolishCalculator</span> <span class="k">extends</span> <span class="nc">JavaTokenParsers</span> <span class="k">with</span> <span class="nc">Maths</span> <span class="o">{</span>
+  <span class="cm">/**
+   * Takes an expression, which consists of N repetitions of a term followed by an operator
+   * In case you are wondering, the parser combinators used here are as follows:
+   *  |   =&gt; The alternation combinator, it parses successfully if either the left or right side match
+   *  ~   =&gt; This combinator forms a sequential combination of it's operands (ex. a~b expects a followed by b)
+   *  ~&gt;  =&gt; This combinator says "ensure the left operand exists, but don't include it in the result"
+   *  &lt;~  =&gt; This combinator says "ensure the right operand exists, but don't include it in the result"
+   *  ^^  =&gt; This combinator says "if parsed successfully, transform the result using the block on the right"
+   *  rep =&gt; This combinator says "expect zero or more repetitions of X"
+   */</span>
+  <span class="k">def</span> <span class="n">expr</span><span class="k">:</span>   <span class="kt">Parser</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="n">rep</span><span class="o">(</span><span class="n">term</span> <span class="o">~</span> <span class="n">operator</span><span class="o">)</span> <span class="o">^^</span> <span class="o">{</span>
+    <span class="c1">// match a list of term~operator
+</span>    <span class="k">case</span> <span class="n">terms</span> <span class="k">=&gt;</span>
+      <span class="c1">// Each operand will be placed on the stack, and pairs will be popped off for each operation,
+</span>      <span class="c1">// replacing the pair with the result of the operation. Calculation ends when the final operator
+</span>      <span class="c1">// is applied to all remaining operands
+</span>      <span class="k">var</span> <span class="n">stack</span>  <span class="k">=</span> <span class="nc">List</span><span class="o">.</span><span class="n">empty</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span>
+      <span class="c1">// Remember the last operation performed, default to addition
+</span>      <span class="k">var</span> <span class="n">lastOp</span><span class="k">:</span> <span class="o">(</span><span class="kt">Float</span><span class="o">,</span> <span class="kt">Float</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Float</span> <span class="k">=</span> <span class="n">add</span>
+      <span class="n">terms</span><span class="o">.</span><span class="n">foreach</span><span class="o">(</span><span class="n">t</span> <span class="k">=&gt;</span>
+        <span class="c1">// match on the operator to perform the appropriate calculation
+</span>        <span class="n">t</span> <span class="k">match</span> <span class="o">{</span>
+          <span class="c1">// append the operands to the stack, and reduce the pair at the top using the current operator
+</span>          <span class="k">case</span> <span class="n">nums</span> <span class="o">~</span> <span class="n">op</span> <span class="k">=&gt;</span> <span class="n">lastOp</span> <span class="k">=</span> <span class="n">op</span><span class="o">;</span> <span class="n">stack</span> <span class="k">=</span> <span class="n">reduce</span><span class="o">(</span><span class="n">stack</span> <span class="o">++</span> <span class="n">nums</span><span class="o">,</span> <span class="n">op</span><span class="o">)</span>
+        <span class="o">}</span>
+      <span class="o">)</span>
+      <span class="c1">// Apply the last operation to all remaining operands
+</span>      <span class="n">stack</span><span class="o">.</span><span class="n">reduceRight</span><span class="o">((</span><span class="n">x</span><span class="o">,</span> <span class="n">y</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">lastOp</span><span class="o">(</span><span class="n">y</span><span class="o">,</span> <span class="n">x</span><span class="o">))</span>
+  <span class="o">}</span>
+  <span class="c1">// A term is N factors
+</span>  <span class="k">def</span> <span class="n">term</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">Float</span><span class="o">]]</span> <span class="k">=</span> <span class="n">rep</span><span class="o">(</span><span class="n">factor</span><span class="o">)</span>
+  <span class="c1">// A factor is either a number, or another expression (wrapped in parens), converted to Float
+</span>  <span class="k">def</span> <span class="n">factor</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="n">num</span> <span class="o">|</span> <span class="s">"("</span> <span class="o">~&gt;</span> <span class="n">expr</span> <span class="o">&lt;~</span> <span class="s">")"</span> <span class="o">^^</span> <span class="o">(</span><span class="k">_</span><span class="o">.</span><span class="n">toFloat</span><span class="o">)</span>
+  <span class="c1">// Converts a floating point number as a String to Float
+</span>  <span class="k">def</span> <span class="n">num</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="n">floatingPointNumber</span> <span class="o">^^</span> <span class="o">(</span><span class="k">_</span><span class="o">.</span><span class="n">toFloat</span><span class="o">)</span>
+  <span class="c1">// Parses an operator and converts it to the underlying function it logically maps to
+</span>  <span class="k">def</span> <span class="n">operator</span><span class="k">:</span> <span class="kt">Parser</span><span class="o">[(</span><span class="kt">Float</span>, <span class="kt">Float</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="o">(</span><span class="s">"*"</span> <span class="o">|</span> <span class="s">"/"</span> <span class="o">|</span> <span class="s">"+"</span> <span class="o">|</span> <span class="s">"-"</span><span class="o">)</span> <span class="o">^^</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="s">"+"</span> <span class="k">=&gt;</span> <span class="n">add</span>
+    <span class="k">case</span> <span class="s">"-"</span> <span class="k">=&gt;</span> <span class="n">sub</span>
+    <span class="k">case</span> <span class="s">"*"</span> <span class="k">=&gt;</span> <span class="n">mul</span>
+    <span class="k">case</span> <span class="s">"/"</span> <span class="k">=&gt;</span> <span class="n">div</span>
+  <span class="o">}</span>
+
+  <span class="c1">// Reduces a stack of numbers by popping the last pair off the stack, applying op, and pushing the result
+</span>  <span class="k">def</span> <span class="n">reduce</span><span class="o">(</span><span class="n">nums</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Float</span><span class="o">],</span> <span class="n">op</span><span class="k">:</span> <span class="o">(</span><span class="kt">Float</span><span class="o">,</span> <span class="kt">Float</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Float</span><span class="o">)</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+    <span class="c1">// Reversing the list lets us use pattern matching to destructure the list safely
+</span>    <span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="n">nums</span><span class="o">.</span><span class="n">reverse</span> <span class="k">match</span> <span class="o">{</span>
+      <span class="c1">// Has at least two numbers at the end
+</span>      <span class="k">case</span> <span class="n">x</span> <span class="o">::</span> <span class="n">y</span> <span class="o">::</span> <span class="n">xs</span> <span class="k">=&gt;</span> <span class="n">xs</span> <span class="o">++</span> <span class="nc">List</span><span class="o">(</span><span class="n">op</span><span class="o">(</span><span class="n">y</span><span class="o">,</span> <span class="n">x</span><span class="o">))</span>
+      <span class="c1">// List of only one number
+</span>      <span class="k">case</span> <span class="nc">List</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>      <span class="k">=&gt;</span> <span class="nc">List</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+      <span class="c1">// Empty list
+</span>      <span class="k">case</span> <span class="k">_</span>            <span class="k">=&gt;</span> <span class="nc">List</span><span class="o">.</span><span class="n">empty</span><span class="o">[</span><span class="kt">Float</span><span class="o">]</span>
+    <span class="o">}</span>
+    <span class="n">result</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="k">object</span> <span class="nc">Calculator</span> <span class="k">extends</span> <span class="nc">ReversePolishCalculator</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">main</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="o">{</span>
+    <span class="n">println</span><span class="o">(</span><span class="s">"input: "</span> <span class="o">+</span> <span class="n">args</span><span class="o">(</span><span class="mi">0</span><span class="o">))</span>
+    <span class="n">println</span><span class="o">(</span><span class="s">"result: "</span> <span class="o">+</span> <span class="n">calculate</span><span class="o">(</span><span class="n">args</span><span class="o">(</span><span class="mi">0</span><span class="o">)))</span>
+  <span class="o">}</span>
+
+  <span class="c1">// Parse an expression and return the calculated result as a String
+</span>  <span class="k">def</span> <span class="n">calculate</span><span class="o">(</span><span class="n">expression</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span> <span class="n">parseAll</span><span class="o">(</span><span class="n">expr</span><span class="o">,</span> <span class="n">expression</span><span class="o">)</span>
+<span class="o">}</span></code></pre></div>
+
+<h2 id="wrapping-up">Wrapping Up</h2>
+
+<p>And that’s it! An example of applying Scala’s parser combinators to an admittedly trivial problem, but it doesn’t take much to extend what you’ve learned here to more practical problems you may be facing every day. Feel free to leave a comment if you have any questions about this article, Scala, or parser combinators!</p>
+
+</article>
+
+
+
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+  <div class="measure">
+    <small>
+        Paul Schoenfelder (<a href="https://github.com/bitwalker">bitwalker</a>) (<a href="https://twitter.com/gotbones">@gotbones</a>)
+    </small>
+  </div>
+</footer>
+
+</body>
+</html>

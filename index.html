@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>bitwalker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Stuff about things.">
+    <meta name="author" content="Paul Schoenfelder">
+    
+    <link rel="canonical" href="/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for bitwalker" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?201507160331" type="text/css">
+
+    <!-- Fonts -->
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="bitwalker">
+    <meta property="og:description" content="Stuff about things.">
+    <meta property="og:url" content="/">
+    <meta property="og:site_name" content="bitwalker">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@gotbones" />
+    
+    <meta name="twitter:title" content="bitwalker" />
+    <meta name="twitter:description" content="Stuff about things." />
+    <meta name="twitter:url" content="/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+        
+    
+</head>
+
+<body class="site">
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="" class="site-title">bitwalker</a>
+      <nav class="site-nav">
+        <a href="/about/">About</a>
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        <div class="home">
+
+  <div class="posts">
+    
+      <div class="post py3">
+        <p class="post-meta">Jul 10, 2014</p>
+        <a href="/play/scala/programming/2014/07/10/scala-streaming-file-uploads/" class="post-link"><h3 class="h1 post-title">Proxied Streaming Uploads with Scala/Play</h3></a>
+        <p class="post-summary">
+          
+            <p>I recently was working on a project using a mashup of technologies: Scala, Play Framework, Sqrrl/Accumulo, Microsoft SQL Server, Hadoop/HDFS, Hive, and some others. Needless to say, rampup was a bit like swallowing water from a firehose. I was brought on to help get a release completed by it’s deadline, so I wasn’t on the project for more than a month, but I did encounter one very fun problem that I felt like sharing. To briefly summarize the context: The project was composed of two Play applications, a web frontend, which served up the assets for the UI and handled proxying requests to the API, which was behind a firewall, and therefore not accessible from the internet. Users needed to be able to upload files containing potentially sensitive data, of varying types, and of unrestricted size (though I would guess the average file size would hover between 25-100mb). These files were ultimately stored in HDFS, behind yet another firewall, which is only accessible by the API server. Not your average file upload scenario.</p>
+
+
+          
+        </p>
+      </div>
+    
+      <div class="post py3">
+        <p class="post-meta">Mar 20, 2014</p>
+        <a href="/elixir/erlang/programming/tutorials/2014/03/20/releases-for-elixir/" class="post-link"><h3 class="h1 post-title">Releases For Elixir</h3></a>
+        <p class="post-summary">
+          
+            <p>Be forewarned, this post requires a fair amount of knowledge about Elixir or Erlang. Though the topic of hot code upgrades and downgrades is probably of interest to any dev who crosses the line in to ops on a regular basis, this particular post is going to be diving headlong into the madness that is Erlang releases, and how I’ve fixed them for Elixir.</p>
+
+
+          
+        </p>
+      </div>
+    
+      <div class="post py3">
+        <p class="post-meta">Mar 10, 2014</p>
+        <a href="/elixir/erlang/programming/tutorials/2014/03/10/what-is-elixir-and-why-do-i-care/" class="post-link"><h3 class="h1 post-title">What Is Elixir, and Why Do I Care?</h3></a>
+        <p class="post-summary">
+          
+            <p>This was the first thing that sprung to my mind when I first heard about Elixir. Up until that point I had written significant code in a number of languages and platforms, looking for one that <em>felt right</em>, if that’s even the best way to phrase the nature of my search. C#, Ruby, Python, Javascript, Scala, Clojure, C and C++ - all of them shared one theme in common: I enjoy some aspect of them, each has their pros and cons, I was able to program effectively in them, and generally the communities are great. So why would Elixir be any different? Why bother to learn yet another language that I’ll be just as frustrated with?</p>
+
+
+          
+        </p>
+      </div>
+    
+      <div class="post py3">
+        <p class="post-meta">Aug 10, 2013</p>
+        <a href="/scala/programming/tutorial/2013/08/10/learn-by-example-scala-parser-combinators/" class="post-link"><h3 class="h1 post-title">Learn by Example: Scala Parser Combinators</h3></a>
+        <p class="post-summary">
+          
+            <p>One of the more common things you run into during software development is the need to parse arbitrary text for data.
+Typically, you might use regular expressions, or encode assumptions about the data format in the way you parse the text (think slicing a string at specific indices, splitting on commas, etc). Both of these are brittle, and require a lot of verbose code to properly handle all of the possible failure points. This might lead you to writing your own parser if you are committed enough - but this is a large undertaking for most developers. You have to learn how to write a parser, or learn a parser generator in order to even begin coding the solution to your particular use case. Scala has a fantastic solution to this problem however, and that solution is parser combinators.</p>
+
+
+          
+        </p>
+      </div>
+    
+  </div>
+
+  <div class="pagination clearfix mb1 mt4">
+  <div class="left">
+    
+      <span class="pagination-item disabled">Newer</span>
+    
+  </div>
+  <div class="right">
+    
+      <span class="pagination-item disabled">Older</span>
+    
+  </div>
+</div>
+
+</div>
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+  <div class="measure">
+    <small>
+        Paul Schoenfelder (<a href="https://github.com/bitwalker">bitwalker</a>) (<a href="https://twitter.com/gotbones">@gotbones</a>)
+    </small>
+  </div>
+</footer>
+
+</body>
+</html>

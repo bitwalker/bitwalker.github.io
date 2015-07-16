@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>/play/scala/programming/2014/07/10/scala-streaming-file-uploads/</loc>
+    <lastmod>2014-07-10T10:30:00-05:00</lastmod>
+  </url>
+  <url>
+    <loc>/elixir/erlang/programming/tutorials/2014/03/20/releases-for-elixir/</loc>
+    <lastmod>2014-03-20T01:00:00-05:00</lastmod>
+  </url>
+  <url>
+    <loc>/elixir/erlang/programming/tutorials/2014/03/10/what-is-elixir-and-why-do-i-care/</loc>
+    <lastmod>2014-03-10T17:52:37-05:00</lastmod>
+  </url>
+  <url>
+    <loc>/scala/programming/tutorial/2013/08/10/learn-by-example-scala-parser-combinators/</loc>
+    <lastmod>2013-08-10T22:28:00-05:00</lastmod>
+  </url>
+  <url>
+    <loc>/404.html</loc>
+  </url>
+  <url>
+    <loc>/contact/</loc>
+  </url>
+  <url>
+    <loc>/</loc>
+  </url>
+</urlset>
