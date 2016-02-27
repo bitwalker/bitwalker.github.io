@@ -2,19 +2,19 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Programming on Bitwalker</title>
-    <link>https://bitwalker.org/categories/programming/</link>
+    <link>http://bitwalker.org/categories/programming/</link>
     <description>Recent content in Programming on Bitwalker</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Thu, 20 Mar 2014 01:00:00 -0500</lastBuildDate>
-    <atom:link href="https://bitwalker.org/categories/programming/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://bitwalker.org/categories/programming/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
       <title>Releases For Elixir</title>
-      <link>https://bitwalker.org/posts/2014-03-11-releases-for-elixir/</link>
+      <link>http://bitwalker.org/posts/2014-03-11-releases-for-elixir/</link>
       <pubDate>Thu, 20 Mar 2014 01:00:00 -0500</pubDate>
       
-      <guid>https://bitwalker.org/posts/2014-03-11-releases-for-elixir/</guid>
+      <guid>http://bitwalker.org/posts/2014-03-11-releases-for-elixir/</guid>
       <description>&lt;p&gt;Be forewarned, this post requires a fair amount of knowledge about Elixir or Erlang. Though the topic of hot code upgrades and downgrades is probably of interest to any dev who crosses the line in to ops on a regular basis, this particular post is going to be diving headlong into the madness that is Erlang releases, and how I&amp;rsquo;ve fixed them for Elixir.&lt;/p&gt;
 
 &lt;p&gt;I was hanging out in &lt;code&gt;#elixir-lang&lt;/code&gt; last week, when someone (I believe it was &lt;code&gt;tylerflint&lt;/code&gt;) brought up the issue of performing releases with Elixir. This had been a passively interesting topic to me, as it had been briefly mentioned a few times before, but I hadn&amp;rsquo;t actually heard of anyone doing them.&lt;/p&gt;
@@ -65,10 +65,10 @@
     
     <item>
       <title>Learn by Example: Scala Parser Combinators</title>
-      <link>https://bitwalker.org/posts/2013-08-10-learn-by-example-scala-parser-combinators/</link>
+      <link>http://bitwalker.org/posts/2013-08-10-learn-by-example-scala-parser-combinators/</link>
       <pubDate>Sat, 10 Aug 2013 22:28:00 -0500</pubDate>
       
-      <guid>https://bitwalker.org/posts/2013-08-10-learn-by-example-scala-parser-combinators/</guid>
+      <guid>http://bitwalker.org/posts/2013-08-10-learn-by-example-scala-parser-combinators/</guid>
       <description>
 
 &lt;p&gt;One of the more common things you run into during software development is the need to parse arbitrary text for data.
