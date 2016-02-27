@@ -3,8 +3,13 @@
   
   <url>
     <loc>http://bitwalker.org/</loc>
-    <lastmod>2014-03-20T01:00:00-05:00</lastmod>
+    <lastmod>2014-07-10T10:30:05-05:00</lastmod>
     <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://bitwalker.org/posts/2014-07-10-scala-streaming-file-uploads/</loc>
+    <lastmod>2014-07-10T10:30:05-05:00</lastmod>
   </url>
   
   <url>
