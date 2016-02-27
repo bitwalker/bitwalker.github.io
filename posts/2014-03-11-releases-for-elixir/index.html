@@ -1,0 +1,178 @@
+    <!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="author" content="Paul Schoenfelder">
+		<meta name="description" content="Stuff about things">
+		<meta name="generator" content="Hugo 0.15" />
+		<title>Releases For Elixir &middot; Bitwalker</title>
+		<link rel="shortcut icon" href="https://bitwalker.orgimages/favicon.ico">
+		<link rel="stylesheet" href="https://bitwalker.orgcss/style.css">
+		<link rel="stylesheet" href="https://bitwalker.orgcss/highlight.css">
+		<link rel="stylesheet" href="https://bitwalker.orgcss/monosocialiconsfont.css">
+        <link rel="stylesheet" href="//fonts.googleapis.com/css?subset=latin,cyrillic-ext,latin-ext,cyrillic&family=Open+Sans+Condensed:300|Open+Sans:400,600,400italic,600italic|Merriweather:400,300,300italic,400italic,700,700italic|Roboto+Slab:400,300" />
+		
+		<link href="https://bitwalker.org/index.xml" rel="alternate" type="application/rss+xml" title="Bitwalker" />
+		
+	</head>
+
+    <body>
+       <nav class="main-nav">
+	
+	
+		<a href='https://bitwalker.org'> <span class="arrow">←</span>Home</a>
+	
+
+	
+	<a class="cta" href="https://bitwalker.org/index.xml">Subscribe</a>
+	
+</nav>
+
+
+        <section id="wrapper">
+            <article class="post">
+                <header>
+                    <h1>Releases For Elixir</h1>
+                    <h2 class="headline">March 20, 2014</h2>
+                </header>
+                <section id="post-body">
+                    <p>Be forewarned, this post requires a fair amount of knowledge about Elixir or Erlang. Though the topic of hot code upgrades and downgrades is probably of interest to any dev who crosses the line in to ops on a regular basis, this particular post is going to be diving headlong into the madness that is Erlang releases, and how I&rsquo;ve fixed them for Elixir.</p>
+
+<p>I was hanging out in <code>#elixir-lang</code> last week, when someone (I believe it was <code>tylerflint</code>) brought up the issue of performing releases with Elixir. This had been a passively interesting topic to me, as it had been briefly mentioned a few times before, but I hadn&rsquo;t actually heard of anyone doing them.</p>
+
+<p>In case you are reading this post to get an idea of how hot code upgrades/downgrades work in Elixir/Erlang - releases are how you do so. It&rsquo;s more than a little interesting, that something that is touted as a major feature of the Erlang VM is roughly equivalent to summoning deep magic, with incantations so arcane that only the most learned of magicians dare approach the subject.</p>
+
+<p>Just to give you an idea, take a look <a href="http://www.erlang.org/doc/design_principles/release_handling.html">at this documentation</a> describing the high level concepts around release handling. If that doesn&rsquo;t scare you away, <a href="http://www.erlang.org/doc/design_principles/appup_cookbook.html">maybe this will</a>. That last one describes the most critical aspect, how one release will upgrade (and downgrade) to another. It&rsquo;s so important, that if you do it wrong, you might as well have not even done it in the first place, because either your app will crash, the upgrade will fail in unpredicatable ways, or it will upgrade, but perhaps reload a module instead of upgrade it in place. The general sentiment I&rsquo;ve encountered is that people either don&rsquo;t use releases, or they use releases, but just do rolling upgrades (taking a node offline, and restarting it using the new release). That seems fundamentally broken to me.</p>
+
+<p>In the Erlang world, there is an excellent tool called Relx, which shields you from virtually all of the pain around most of the release tasks. The problem of course, is that Relx makes no attempt to help you with the appups, which again, is kind of the most critical aspect. In additon, it requires you to write your own build script over the top in order to call it with the appropriate configuration and parameters. Still, you get a lot of stuff for free out of Relx, and I think it&rsquo;s an excellent tool - I think it can be better.</p>
+
+<p>So <code>tylerflint</code> asked about releases, and nobody had answers. So I told him I&rsquo;d be interested in helping build a tool for it. He came back a few days later with an example project containing a handwritten <code>Makefile</code>, <code>relx.config</code>, and shell script to boot the release - and it worked great! Here in just a few days, he had put together a working tool that generated releases and allowed you to start it up with an Elixir shell. Unfortunately, it didn&rsquo;t handle upgrades/downgrades, it required you to download and compile Elixir during execution, it depended on a specific version of ERTS (the Erlang Runtime System), and it wasn&rsquo;t packaged in a way that could be easily brought in to any project.</p>
+
+<p>So <code>exrm</code>, the Elixir Release Manager, was born. The first iteration was essentially an Elixir wrapper (via a Mix task) around the <code>Makefile</code>, <code>relx.config</code>, and shell script he had written. It worked, but there were a lot of flaws. Over the past week or so, it has now evolved into a fully functional tool, which handles initial release, upgrades, and downgrades - all within a simple Mix task. Most importantly though, it does automatic appup generation. This is the secret sauce that I think will make releases in Elixir not only painless, but a recommended strategy for deploying to production. To give you an idea of what Elixir releases, via <code>exrm</code>, look like today, here is all the commands necessary to execute a release, deploy it, start it, upgrade it, then downgrade it:</p>
+
+<ol>
+<li><code>mix release</code></li>
+<li><code>&lt;make changes to project&gt;</code></li>
+<li><code>mix release</code></li>
+<li><code>mkdir -p /tmp/example</code> (create deploy location)</li>
+<li><code>cp rel/example/**.tar.gz /tmp</code> (copy release packages to target)</li>
+<li><code>cd /tmp/example &amp;&amp; tar -xf ../example-0.0.1.tar.gz</code> (extract initial release)</li>
+<li><code>bin/example start</code> (start your app)</li>
+<li><code>bin/example remote_console</code> (if you want an <code>iex</code> shell attached to the running node)</li>
+<li><code>mkdir -p releases/0.0.2</code></li>
+<li><code>cp ../example-0.0.2.tar.gz releases/0.0.2/example.tar.gz</code> (deploy the upgrade package)</li>
+<li><code>bin/example upgrade &quot;0.0.2&quot;</code> (upgrade the node)</li>
+<li><code>bin/example downgrade &quot;0.0.1&quot;</code> (downgrade the node)</li>
+<li><code>bin/example stop</code> (stop the app)</li>
+</ol>
+
+<p>I don&rsquo;t know about you, but that&rsquo;s about the simplest possible deployment process I&rsquo;ve seen in any language. All of that could be automated even further using a CI server of some kind, and all without ever taking the running application offline, not even a dropped network connection. Now I feel like I understand the power of the Erlang VM, and what it means to have hot upgrades and downgrades - it&rsquo;s an incredibly powerful feature. Sadly though, <code>exrm</code> is only useful to an Elixir project, but a lot of the core logic could just as easily be built in Erlang as well.</p>
+
+<p>In case you are curious about the automatic appup generation, it works as follows:</p>
+
+<ol>
+<li>Reads in the <code>.app</code> of both the old and new release.</li>
+<li>Finds all of the <code>.beam</code> files in both the old and new release.</li>
+<li>Determines what type of module each <code>.beam</code> represents (application, supervisor, behavior, or standard module)</li>
+<li>Determines what type of upgrade operation to apply for each type of module. For instance, supervisors will always be upgraded/downgraded via <code>code_change</code>.</li>
+<li>Determines the set difference between the old and new versions, and applies the appropriate action (load, upgrade, unload, downgrade) for each module. Upgrades are applied in order of their dependencies, and downgrades are applied in reverse order.</li>
+</ol>
+
+<p>And that&rsquo;s it! I&rsquo;m currently working with <code>tylerflint</code> on making release configuration a breeze, likely using cuttlefish, with an Elixir DSL for defining schema files. There will be more developments in the near future, so if releases are important to you, and you have an Elixir project either in, or going to, production - stay tuned. For more info, check out the <a href="https://github.com/bitwalker/exrm">GitHub repository</a>.</p>
+
+<p>If you have any ideas, suggestions, issues, constructive criticisms - please leave a comment, or open an issue on the tracker.</p>
+
+                </section>
+            </article>
+            <footer id="post-meta" class="clearfix">
+                <a href="https://twitter.com/gotbones">
+                        <img class="avatar" src="https://bitwalker.orgimages/avatar.png">
+                        <div>
+                            <span class="dark">Paul Schoenfelder</span>
+                            <span>I love programming and technology</span>
+                        </div>
+                    </a>
+                <section id="sharing">
+                    <a class="twitter" href="https://twitter.com/intent/tweet?text=https%3a%2f%2fbitwalker.org%2fposts%2f2014-03-11-releases-for-elixir%2f - Releases%20For%20Elixir by @gotbones"><span class="icon-twitter"> Tweet</span></a>
+
+<a class="facebook" href="#" onclick="
+    window.open(
+      'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+      'facebook-share-dialog',
+      'width=626,height=436');
+    return false;"><span class="icon-facebook-rect"> Share</span>
+</a>
+
+                </section>
+            </footer>
+
+            
+
+            <ul id="post-list" class="archive readmore">
+    <h3>Read more</h3>
+    
+    
+        
+        <li>
+            <a href="https://bitwalker.org/posts/2014-03-11-releases-for-elixir/">Releases For Elixir<aside class="dates">Mar 20</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="https://bitwalker.org/posts/2014-03-10-what-is-elixir-and-why-do-i-care/">What Is Elixir, and Why Do I Care?<aside class="dates">Mar 10</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="https://bitwalker.org/posts/2013-08-10-learn-by-example-scala-parser-combinators/">Learn by Example: Scala Parser Combinators<aside class="dates">Aug 10</aside></a>
+        </li>
+        
+   
+</ul>
+            <footer id="footer">
+    
+        
+<div id="social">
+    
+    <a class="symbol" href="">
+        circledribble
+    </a>
+    
+    <a class="symbol" href="">
+        circlefacebook
+    </a>
+    
+    <a class="symbol" href="https://github.com/bitwalker">
+        circlegithub
+    </a>
+    
+    <a class="symbol" href="https://twitter.com/gotbones">
+        circletwitterbird
+    </a>
+    
+</div>
+
+    
+    <p class="small">
+    
+        2016 Paul Schoenfelder
+    
+    </p>
+</footer>
+
+        </section>
+
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://bitwalker.orgjs/main.js"></script>
+<script src="https://bitwalker.orgjs/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+
+    </body>
+</html>

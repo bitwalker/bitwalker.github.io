@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  <url>
+    <loc>https://bitwalker.org/</loc>
+    <lastmod>2014-03-20T01:00:00-05:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>https://bitwalker.org/posts/2014-03-11-releases-for-elixir/</loc>
+    <lastmod>2014-03-20T01:00:00-05:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://bitwalker.org/posts/2014-03-10-what-is-elixir-and-why-do-i-care/</loc>
+    <lastmod>2014-03-10T17:52:37-05:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://bitwalker.org/posts/2013-08-10-learn-by-example-scala-parser-combinators/</loc>
+    <lastmod>2013-08-10T22:28:00-05:00</lastmod>
+  </url>
+  
+</urlset>

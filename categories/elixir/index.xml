@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Elixir on Bitwalker</title>
+    <link>https://bitwalker.org/categories/elixir/</link>
+    <description>Recent content in Elixir on Bitwalker</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 20 Mar 2014 01:00:00 -0500</lastBuildDate>
+    <atom:link href="https://bitwalker.org/categories/elixir/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Releases For Elixir</title>
+      <link>https://bitwalker.org/posts/2014-03-11-releases-for-elixir/</link>
+      <pubDate>Thu, 20 Mar 2014 01:00:00 -0500</pubDate>
+      
+      <guid>https://bitwalker.org/posts/2014-03-11-releases-for-elixir/</guid>
+      <description>&lt;p&gt;Be forewarned, this post requires a fair amount of knowledge about Elixir or Erlang. Though the topic of hot code upgrades and downgrades is probably of interest to any dev who crosses the line in to ops on a regular basis, this particular post is going to be diving headlong into the madness that is Erlang releases, and how I&amp;rsquo;ve fixed them for Elixir.&lt;/p&gt;
+
+&lt;p&gt;I was hanging out in &lt;code&gt;#elixir-lang&lt;/code&gt; last week, when someone (I believe it was &lt;code&gt;tylerflint&lt;/code&gt;) brought up the issue of performing releases with Elixir. This had been a passively interesting topic to me, as it had been briefly mentioned a few times before, but I hadn&amp;rsquo;t actually heard of anyone doing them.&lt;/p&gt;
+
+&lt;p&gt;In case you are reading this post to get an idea of how hot code upgrades/downgrades work in Elixir/Erlang - releases are how you do so. It&amp;rsquo;s more than a little interesting, that something that is touted as a major feature of the Erlang VM is roughly equivalent to summoning deep magic, with incantations so arcane that only the most learned of magicians dare approach the subject.&lt;/p&gt;
+
+&lt;p&gt;Just to give you an idea, take a look &lt;a href=&#34;http://www.erlang.org/doc/design_principles/release_handling.html&#34;&gt;at this documentation&lt;/a&gt; describing the high level concepts around release handling. If that doesn&amp;rsquo;t scare you away, &lt;a href=&#34;http://www.erlang.org/doc/design_principles/appup_cookbook.html&#34;&gt;maybe this will&lt;/a&gt;. That last one describes the most critical aspect, how one release will upgrade (and downgrade) to another. It&amp;rsquo;s so important, that if you do it wrong, you might as well have not even done it in the first place, because either your app will crash, the upgrade will fail in unpredicatable ways, or it will upgrade, but perhaps reload a module instead of upgrade it in place. The general sentiment I&amp;rsquo;ve encountered is that people either don&amp;rsquo;t use releases, or they use releases, but just do rolling upgrades (taking a node offline, and restarting it using the new release). That seems fundamentally broken to me.&lt;/p&gt;
+
+&lt;p&gt;In the Erlang world, there is an excellent tool called Relx, which shields you from virtually all of the pain around most of the release tasks. The problem of course, is that Relx makes no attempt to help you with the appups, which again, is kind of the most critical aspect. In additon, it requires you to write your own build script over the top in order to call it with the appropriate configuration and parameters. Still, you get a lot of stuff for free out of Relx, and I think it&amp;rsquo;s an excellent tool - I think it can be better.&lt;/p&gt;
+
+&lt;p&gt;So &lt;code&gt;tylerflint&lt;/code&gt; asked about releases, and nobody had answers. So I told him I&amp;rsquo;d be interested in helping build a tool for it. He came back a few days later with an example project containing a handwritten &lt;code&gt;Makefile&lt;/code&gt;, &lt;code&gt;relx.config&lt;/code&gt;, and shell script to boot the release - and it worked great! Here in just a few days, he had put together a working tool that generated releases and allowed you to start it up with an Elixir shell. Unfortunately, it didn&amp;rsquo;t handle upgrades/downgrades, it required you to download and compile Elixir during execution, it depended on a specific version of ERTS (the Erlang Runtime System), and it wasn&amp;rsquo;t packaged in a way that could be easily brought in to any project.&lt;/p&gt;
+
+&lt;p&gt;So &lt;code&gt;exrm&lt;/code&gt;, the Elixir Release Manager, was born. The first iteration was essentially an Elixir wrapper (via a Mix task) around the &lt;code&gt;Makefile&lt;/code&gt;, &lt;code&gt;relx.config&lt;/code&gt;, and shell script he had written. It worked, but there were a lot of flaws. Over the past week or so, it has now evolved into a fully functional tool, which handles initial release, upgrades, and downgrades - all within a simple Mix task. Most importantly though, it does automatic appup generation. This is the secret sauce that I think will make releases in Elixir not only painless, but a recommended strategy for deploying to production. To give you an idea of what Elixir releases, via &lt;code&gt;exrm&lt;/code&gt;, look like today, here is all the commands necessary to execute a release, deploy it, start it, upgrade it, then downgrade it:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;mix release&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;&amp;lt;make changes to project&amp;gt;&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;mix release&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;mkdir -p /tmp/example&lt;/code&gt; (create deploy location)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;cp rel/example/**.tar.gz /tmp&lt;/code&gt; (copy release packages to target)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;cd /tmp/example &amp;amp;&amp;amp; tar -xf ../example-0.0.1.tar.gz&lt;/code&gt; (extract initial release)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example start&lt;/code&gt; (start your app)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example remote_console&lt;/code&gt; (if you want an &lt;code&gt;iex&lt;/code&gt; shell attached to the running node)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;mkdir -p releases/0.0.2&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;cp ../example-0.0.2.tar.gz releases/0.0.2/example.tar.gz&lt;/code&gt; (deploy the upgrade package)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example upgrade &amp;quot;0.0.2&amp;quot;&lt;/code&gt; (upgrade the node)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example downgrade &amp;quot;0.0.1&amp;quot;&lt;/code&gt; (downgrade the node)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example stop&lt;/code&gt; (stop the app)&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;I don&amp;rsquo;t know about you, but that&amp;rsquo;s about the simplest possible deployment process I&amp;rsquo;ve seen in any language. All of that could be automated even further using a CI server of some kind, and all without ever taking the running application offline, not even a dropped network connection. Now I feel like I understand the power of the Erlang VM, and what it means to have hot upgrades and downgrades - it&amp;rsquo;s an incredibly powerful feature. Sadly though, &lt;code&gt;exrm&lt;/code&gt; is only useful to an Elixir project, but a lot of the core logic could just as easily be built in Erlang as well.&lt;/p&gt;
+
+&lt;p&gt;In case you are curious about the automatic appup generation, it works as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Reads in the &lt;code&gt;.app&lt;/code&gt; of both the old and new release.&lt;/li&gt;
+&lt;li&gt;Finds all of the &lt;code&gt;.beam&lt;/code&gt; files in both the old and new release.&lt;/li&gt;
+&lt;li&gt;Determines what type of module each &lt;code&gt;.beam&lt;/code&gt; represents (application, supervisor, behavior, or standard module)&lt;/li&gt;
+&lt;li&gt;Determines what type of upgrade operation to apply for each type of module. For instance, supervisors will always be upgraded/downgraded via &lt;code&gt;code_change&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Determines the set difference between the old and new versions, and applies the appropriate action (load, upgrade, unload, downgrade) for each module. Upgrades are applied in order of their dependencies, and downgrades are applied in reverse order.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;And that&amp;rsquo;s it! I&amp;rsquo;m currently working with &lt;code&gt;tylerflint&lt;/code&gt; on making release configuration a breeze, likely using cuttlefish, with an Elixir DSL for defining schema files. There will be more developments in the near future, so if releases are important to you, and you have an Elixir project either in, or going to, production - stay tuned. For more info, check out the &lt;a href=&#34;https://github.com/bitwalker/exrm&#34;&gt;GitHub repository&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;If you have any ideas, suggestions, issues, constructive criticisms - please leave a comment, or open an issue on the tracker.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>What Is Elixir, and Why Do I Care?</title>
+      <link>https://bitwalker.org/posts/2014-03-10-what-is-elixir-and-why-do-i-care/</link>
+      <pubDate>Mon, 10 Mar 2014 17:52:37 -0500</pubDate>
+      
+      <guid>https://bitwalker.org/posts/2014-03-10-what-is-elixir-and-why-do-i-care/</guid>
+      <description>
+
+&lt;p&gt;This was the first thing that sprung to my mind when I first heard about Elixir. Up until that point I had written significant code in a number of languages and platforms, looking for one that &lt;em&gt;felt right&lt;/em&gt;, if that&amp;rsquo;s even the best way to phrase the nature of my search. C#, Ruby, Python, Javascript, Scala, Clojure, C and C++ - all of them shared one theme in common: I enjoy some aspect of them, each has their pros and cons, I was able to program effectively in them, and generally the communities are great. So why would Elixir be any different? Why bother to learn yet another language that I&amp;rsquo;ll be just as frustrated with?&lt;/p&gt;
+
+&lt;p&gt;Being the person I am, I decided to try it anyway, because hey, what do I have to lose, right? Boy, am I glad I did. Elixir steals what is great about many of the languages I already know and love, adds some great features of its own, and combines them with an extremely powerful, yet little-known language/platform known as Erlang/OTP.&lt;/p&gt;
+
+&lt;h2 id=&#34;erlang:93a966945877c35331b977aa568db98b&#34;&gt;Erlang&lt;/h2&gt;
+
+&lt;p&gt;Before I start talking about Elixir, I want to make a note here about Erlang. You may or may not have heard about this language before, but don&amp;rsquo;t let that fool you. Erlang, and its standard library, OTP, are used in production all over the world, most notably in the telecommunications industry where it powers a great deal of the systems all of us with a cell phone rely on. It was designed in the 80s by a team at Ericsson, to replace their aging systems with something that was incredibly fault-tolerant, trivial to write concurrent sofware in, and easily distributable (code you write should run on one node the same as it runs on 100, with no code changes). Today, Erlang powers software such as WhatsApp, Facebook Chat, Chef, Heroku, CouchDb, Riak, RabbitMq, and more. I &lt;a href=&#34;https://www.youtube.com/watch?v=_VKGOTl3jGg&#34;&gt;watched a talk&lt;/a&gt; not too long ago where a nuclear physicist had written a complex system to manage a neutrino experiment in a remote region, deep underground. He chose Erlang because of its fault tolerance capabilities, which would ensure that if the system crashed for some reason, it could self-heal, and also log information about the process that crashed, so the experiment could go on while he studied the failure. It is upon Erlang and OTP that Elixir is written, and everything Erlang provides is readily available in Elixir.&lt;/p&gt;
+
+&lt;h2 id=&#34;elixir-s-elevator-pitch:93a966945877c35331b977aa568db98b&#34;&gt;Elixir&amp;rsquo;s Elevator Pitch&lt;/h2&gt;
+
+&lt;p&gt;Elixir is a functional, metaprogrammable language, built for productivity, extensibility, and to take advantage of Erlang&amp;rsquo;s simple but powerful fault-tolerance and concurrency primitives. It is composed of a simple core language, with syntax that is very reminiscent of Ruby (and no wonder, as its creator José Valim, is a Ruby core committer, and author of many Ruby libraries such as Devise). However, despite the aesthetic similarity to Ruby, the semantics of Elixir are quite different.&lt;/p&gt;
+
+&lt;p&gt;At a high level, Elixir provides the following features:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Modules&lt;/li&gt;
+&lt;li&gt;First-class functions&lt;/li&gt;
+&lt;li&gt;Pattern matching (amazing)&lt;/li&gt;
+&lt;li&gt;Protocols, which provide polymorphism for your data types.&lt;/li&gt;
+&lt;li&gt;Macros. If you dig in to Elixir&amp;rsquo;s source code, you will see that the vast majority of the language&amp;rsquo;s syntax is actually defined as simple Elixir macros: &lt;code&gt;if&lt;/code&gt;, &lt;code&gt;unless&lt;/code&gt;, &lt;code&gt;cond&lt;/code&gt;, etc. Incredibly powerful feature.&lt;/li&gt;
+&lt;li&gt;Everything is an expression, this makes it easy to compose code without intermediate variables.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://deveo.com/blog/2013/03/22/immutability-in-ruby-part-1/&#34;&gt;Immutability&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Pipes. Instead of defining code inside-out like: &lt;code&gt;Date.shift(Date.new({2014, 10, 5}), days: 10)&lt;/code&gt;. Pipes allow you to write it as you would say it: &lt;code&gt;{2014, 10, 5} |&amp;gt; Date.new |&amp;gt; Date.shift(days: 10)&lt;/code&gt;. Code becomes very easy to read.&lt;/li&gt;
+&lt;li&gt;Dead simple concurrency.&lt;/li&gt;
+&lt;li&gt;Dead simple clustering/distribution.&lt;/li&gt;
+&lt;li&gt;Built-in unit testing&lt;/li&gt;
+&lt;li&gt;First-class documentation (including the ability to test the code examples in your docs!)&lt;/li&gt;
+&lt;li&gt;Excellent build tool (modeled after Leiningen for Clojure, very similar to Rake for Ruby)&lt;/li&gt;
+&lt;li&gt;Excellent documentation and community&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;elixir-basics:93a966945877c35331b977aa568db98b&#34;&gt;Elixir Basics&lt;/h2&gt;
+
+&lt;p&gt;Ok, so if at this point you aren&amp;rsquo;t convinced, then hopefully seeing some code will do so! Let&amp;rsquo;s run through the very basics you&amp;rsquo;ll need to understand some Elixir code, and then I&amp;rsquo;ll show you an example program which shows you how easy it is to write concurrent software in Elixir.&lt;/p&gt;
+
+&lt;h4 id=&#34;installing-elixir:93a966945877c35331b977aa568db98b&#34;&gt;Installing Elixir&lt;/h4&gt;
+
+&lt;p&gt;Make sure you have &lt;a href=&#34;https://www.erlang-solutions.com/downloads/download-erlang-otp&#34;&gt;Erlang R16B03&lt;/a&gt; installed. If you are on OSX, this step is taken care of for you by Homebrew. If you are on Linux, it should be available via your package manager (it is on Ubuntu at least).&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;OSX: Simply &lt;code&gt;brew install elixir&lt;/code&gt;. If you don&amp;rsquo;t have &lt;a href=&#34;http://brew.sh/&#34;&gt;homebrew&lt;/a&gt; installed, you should.&lt;/li&gt;
+&lt;li&gt;Fedora: &lt;code&gt;sudo yum -y install elixir&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Arch Linux: &lt;code&gt;yaourt -S elixir&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Gentoo: &lt;code&gt;emerge --ask dev-lang/elixir&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Windows: &lt;code&gt;cinst elixir&lt;/code&gt;. If you don&amp;rsquo;t have &lt;a href=&#34;http://chocolatey.org&#34;&gt;chocolatey&lt;/a&gt; installed, you should.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For other operating systems, Elixir provides precompiled releases &lt;a href=&#34;https://github.com/elixir-lang/elixir/releases/&#34;&gt;here.&lt;/a&gt; Alternatively, you can compile from source (after installing Erlang, which should be available via your package manager), but you shouldn&amp;rsquo;t need to do this.&lt;/p&gt;
+
+&lt;h4 id=&#34;interactive-elixir:93a966945877c35331b977aa568db98b&#34;&gt;Interactive Elixir&lt;/h4&gt;
+
+&lt;p&gt;Now that you have Elixir installed, you can play around with the language most easily by using Elixir&amp;rsquo;s interactive prompt, or REPL, called Interactive Elixir, or &lt;code&gt;iex&lt;/code&gt; for short. Assuming Elixir is in your PATH, you can open it up like so:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;&amp;gt; iex
+Erlang/OTP 17 [RELEASE CANDIDATE 1] [erts-6.0] [source-fdcdaca] [64-bit] [smp:4:4] [async-threads:10] [hipe] [kernel-poll:false]
+
+Interactive Elixir (0.13.0-dev) - press Ctrl+C to exit (type h() ENTER for help)
+iex(1)&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;As I walk through the language with you, feel free to type in the examples in the prompt and play around with different variations to get a feel for working in here. &lt;code&gt;iex&lt;/code&gt; is a great way to experiment, and its &lt;a href=&#34;http://i.imgur.com/kXgGfOl.gif&#34;&gt;excellent help feature makes it so you never have to leave the prompt to look up documentation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h4 id=&#34;data-types:93a966945877c35331b977aa568db98b&#34;&gt;Data Types&lt;/h4&gt;
+
+&lt;p&gt;Elixir has the usual basic data types: strings, integers/floats, booleans, as well as others you may recognize:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Tuples&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;iex&amp;gt; tuple = {1, &amp;quot;test&amp;quot;, [1, 2, 3]}
+{1, &amp;quot;test&amp;quot;, [1, 2, 3]}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Lists&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;iex&amp;gt; list = [1, 2, 3]
+[1, 2, 3]
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Maps (Only available in Elixir 0.13+/Erlang R17.0-rc2). If you want to use maps, you&amp;rsquo;ll currently need to compile Erlang and Elixir from source. v0.13 is going to be released soon, so if you aren&amp;rsquo;t super keen on undertaking that process, you won&amp;rsquo;t have to wait long.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;iex&amp;gt; map = %{key: &amp;quot;value&amp;quot;}
+%{key: &amp;quot;value&amp;quot;}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Ranges&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;iex&amp;gt; range = 1..10
+1..10
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Regexes&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;iex&amp;gt; regex = ~r/^(\d)+$/
+~r&amp;quot;^(\\d)+$&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It also has some types you may not be familiar with:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Atoms (their name is their value, they are also used to reference Erlang modules)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;iex&amp;gt; atom = :atom
+:atom
+iex&amp;gt; :calendar.local_time()
+\{\{2014, 3, 6}, {22, 13, 22\}\}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Binaries&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;iex&amp;gt; &amp;lt;&amp;lt;50, 74, 35&amp;gt;&amp;gt;
+&amp;quot;2J#&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;You may be going like &amp;ldquo;whaaaat&amp;rdquo; after that last one, but there&amp;rsquo;s three things here. 1.) Elixir strings are implemented using binaries, 2.) binaries containing all printable characters are printed as strings in &lt;code&gt;iex&lt;/code&gt;, and 3.) binaries are a more general data type that contain, well, binary data. Reading a file from disk, or data from a network connection, happen using binaries.&lt;/p&gt;
+
+&lt;h4 id=&#34;pattern-matching:93a966945877c35331b977aa568db98b&#34;&gt;Pattern Matching&lt;/h4&gt;
+
+&lt;p&gt;One of the most basic tools you will use when writing Elixir code is pattern matching. In short, it allows you to destructure data by its pattern. This is more easily explained using code:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;iex&amp;gt; {a, 2, _} = {1, 2, 3}
+{1, 2, 3}
+iex&amp;gt; a
+1
+iex&amp;gt; {a, 3, _} = {1, 2, 3}
+** (MatchError) no match of right hand side value: {1, 2, 3}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;As you can see, we asserted that the left hand side matches the right hand side using the &lt;code&gt;=&lt;/code&gt; sign. When the left hand is simply a variable name, the right hand side is assigned to the left. If the left hand side is a pattern, as it is above, then it will attempt to match the pattern on the left with the value on the right, and will bind variables on the left if names instead of values are in the pattern. The underscore is used to ignore a value, and essentially says &amp;ldquo;I don&amp;rsquo;t care about the value in this location&amp;rdquo;. Pattern matching is an incredibly powerful feature that lets us quickly access the data we care about, while simultaneously performing validation of its structure. It&amp;rsquo;s even more powerful when combined with &lt;code&gt;case&lt;/code&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;case do_something() do
+  {:ok, result} -&amp;gt; result
+  {:error, _}   -&amp;gt; raise &amp;quot;We&#39;ve failed!&amp;quot;
+  _             -&amp;gt; raise &amp;quot;We got something totally unexpected back!&amp;quot;
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It can also be used to define polymorphic functions, or functions which more concisely express their behavior under certain conditions:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;# Public API
+def  sum(collection),           do: sum(collection, 0)
+# Private API
+defp sum([], total),            do: total
+defp sum([head | rest], total), do: sum(rest, head + total)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;In the above example, we are summing a list of integers. The first case defines what happens when &lt;code&gt;sum&lt;/code&gt; is passed an empty list. The second defines what to do when give a list of at least one element. It breaks the list into two parts, its first element, or head, and the rest. We then recursively call &lt;code&gt;sum&lt;/code&gt; with the tail of the list and add the result to the head to get our sum. Elixir is tail-recursive, so this function will never blow the stack, even if given a huge list of numbers.&lt;/p&gt;
+
+&lt;h2 id=&#34;a-taste-of-elixir:93a966945877c35331b977aa568db98b&#34;&gt;A Taste of Elixir&lt;/h2&gt;
+
+&lt;p&gt;This post is getting really long, so let&amp;rsquo;s ramp up the speed a bit. I&amp;rsquo;m going to show you a quick bit of example code, and then break down what it&amp;rsquo;s doing, the syntax of various components, and why this is so much cleaner than its counterpart in other languages would be. This will expose you to not only some great things about Elixir, but also a wide array of its language features in one go:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;defmodule ContactsProcessor do
+  @moduledoc &amp;quot;&amp;quot;&amp;quot;
+  Reads in a file of contact data, and transforms each line
+  into an Elixir datastructure.
+  &amp;quot;&amp;quot;&amp;quot;
+
+  @doc &amp;quot;&amp;quot;&amp;quot;
+  Processes the given file.
+  &amp;quot;&amp;quot;&amp;quot;
+  def process(file_path) do
+    File.read!(file_path)
+    |&amp;gt; String.split(&amp;quot;\n&amp;quot;)
+    |&amp;gt; Enum.filter(fn line -&amp;gt; String.length(line) &amp;gt; 0 end)
+    |&amp;gt; Enum.map(&amp;amp;transform/1)
+  end
+
+  @doc &amp;quot;&amp;quot;&amp;quot;
+  Transforms each line of the contacts file into a map
+  of names and emails.
+
+  ## Example
+
+    iex&amp;gt; FileProcessor.transform(&amp;quot;Paul Schoenfelder, pschoenf@nerdery.com, 123-456-7890&amp;quot;)
+    %{name: &amp;quot;Paul Schoenfelder&amp;quot;, email: &amp;quot;pschoenf@nerdery.com&amp;quot;}
+
+  &amp;quot;&amp;quot;&amp;quot;
+  def transform(line) do
+    [name, email, _] = line |&amp;gt; String.split(&amp;quot;,&amp;quot;) |&amp;gt; Enum.map(&amp;amp;String.strip/1)
+    %{name: name, email: email}
+  end
+end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Phew! Ok, I hope I didn&amp;rsquo;t lose you, I know you have some questions. Let&amp;rsquo;s talk real quickly about the new stuff up there. To start with, we defined a new module. Elixir breaks logical units of code into modules. You can import modules, alias them to new names, and even pull functions in to the current module as if they were locally defined functions.&lt;/p&gt;
+
+&lt;p&gt;I&amp;rsquo;m sure you noticed that documentation is highly encouraged in Elixir, with first class attributes for module and function-level docs. There is a tool in Elixir&amp;rsquo;s ecosystem that will take those docs and generate HTML documentation for you as well. Docs take whatever you put in them, but markdown is the rule. If you put example code in your docs, using the &lt;code&gt;iex&lt;/code&gt; convention like I used above, you can tell Elixir to run its unit tests against that code, and it will validate that they are correct along with all of your other tests!&lt;/p&gt;
+
+&lt;p&gt;So this module does a very simple thing, it reads a file of contacts, where each contact&amp;rsquo;s info is comma-separated. It then transforms those lines into a usable Elixir data structure which we can then use elsewhere. The &lt;code&gt;process&lt;/code&gt; function does the meat of the work here. Befort we talk about what it&amp;rsquo;s doing, a couple of features should be pointed out. The first is the use of &lt;code&gt;|&amp;gt;&lt;/code&gt;. This operator is called pipe. It does sort of what it sounds like: it pipes the result of the left hand side, into the right hand side function as its first argument. Additional arguments can be defined as part of the right-hand side function call, but will take the place of the 2nd argument, and so on. This allows us to read our code in the same way that the data will flow. The next item to point out is the use of &lt;code&gt;fn .. end&lt;/code&gt; to define an anonymous function. It should be relatively clear, but the format is as follows: &lt;code&gt;fn arg1, arg2, .. -&amp;gt; function_body end&lt;/code&gt;. The third and last item in &lt;code&gt;process&lt;/code&gt; that I&amp;rsquo;d like to point out is the &lt;code&gt;&amp;amp;transform/1&lt;/code&gt; function application syntax. This syntax is used to pass a named function to another function. Its format is as follows: &lt;code&gt;&amp;amp;function_name/arity&lt;/code&gt;. Any time you refer to a function in Elixir (or Erlang), the combination of name and arity matter. This is how Elixir knows which function you are referring to, specifically. At a high level, &lt;code&gt;process&lt;/code&gt; is reading in the file, splitting on newlines so that we now have a list of strings (lines), we call &lt;code&gt;Enum.filter&lt;/code&gt; to filter out any empty lines, and then map &lt;code&gt;transform&lt;/code&gt; over each line to extract the contact information to a map. Simple, right?&lt;/p&gt;
+
+&lt;p&gt;The &lt;code&gt;transform&lt;/code&gt; function is also simple, but let&amp;rsquo;s walk through it. I am pattern matching on the result of splitting the line on commas and stripping extra whitespace from each part. This is being done by piping the line into &lt;code&gt;String.split&lt;/code&gt;, then mapping &lt;code&gt;String.strip&lt;/code&gt; over each part. The result should be a list containing 3 strings: name, email, and phone number, but at this point in time I don&amp;rsquo;t care about the phone number, so I ignore it. I&amp;rsquo;m then creating a new map containing the contact&amp;rsquo;s name and email address, which is the final result of this function.&lt;/p&gt;
+
+&lt;p&gt;And that&amp;rsquo;s it! In other languages, I think you&amp;rsquo;d be hard pressed to so concisely define this same behavior, without a significant amount of additional boilerplate, or sacrificing readability. I&amp;rsquo;m not handling all of the possible failure conditions here, but my example assumes that the equivalent in another language wouldn&amp;rsquo;t be either.&lt;/p&gt;
+
+&lt;p&gt;This example doesn&amp;rsquo;t show Elixir&amp;rsquo;s most powerful features: concurrency and distribution, but I hope you will trust me that the code you write for those scenarios is no less understandable than that which I&amp;rsquo;ve written above. Elixir is a powerful tool, and I wish I had the time (and space!) to write about more of its features. All I can do is encourage you to look into this language yourself, and I hope to see you in the community!&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
