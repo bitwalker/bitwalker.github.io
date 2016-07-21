@@ -1,0 +1,972 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Programming on Bitwalker</title>
+    <link>http://bitwalker.org/categories/programming/</link>
+    <description>Recent content in Programming on Bitwalker</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 21 Jul 2016 17:48:07 -0500</lastBuildDate>
+    <atom:link href="http://bitwalker.org/categories/programming/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Distillery vs. Exrm vs. Relx</title>
+      <link>http://bitwalker.org/posts/2016-07-21-distillery-vs-exrm-vs-relx/</link>
+      <pubDate>Thu, 21 Jul 2016 17:48:07 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/posts/2016-07-21-distillery-vs-exrm-vs-relx/</guid>
+      <description>
+
+&lt;p&gt;I received an excellent question on Twitter today:&lt;/p&gt;
+
+&lt;blockquote class=&#34;twitter-tweet&#34;&gt;&lt;p lang=&#34;en&#34; dir=&#34;ltr&#34;&gt;&lt;a href=&#34;https://twitter.com/gotbones&#34;&gt;@gotbones&lt;/a&gt; Can you explain the different ideas/approaches of distillery/exrm and relx? Maybe even edeliver? What prompted the rewrite? 🙂&lt;/p&gt;&amp;mdash; Felipe Sere (@felipesere) &lt;a href=&#34;https://twitter.com/felipesere/status/756255858636521472&#34;&gt;July 21, 2016&lt;/a&gt;&lt;/blockquote&gt;
+&lt;script async src=&#34;//platform.twitter.com/widgets.js&#34; charset=&#34;utf-8&#34;&gt;&lt;/script&gt;
+
+&lt;p&gt;I&amp;rsquo;ve been focusing more on implementing &lt;a href=&#34;https://github.com/bitwalker/distillery&#34;&gt;Distillery&lt;/a&gt;,
+sharing it with people willing to help test, etc., that I forgot to sit down and write down why it
+exists in the first place. So in this post, I&amp;rsquo;ll attempt to explain as best I can.&lt;/p&gt;
+
+&lt;h2 id=&#34;do-i-care&#34;&gt;Do I care?&lt;/h2&gt;
+
+&lt;p&gt;Do you use Exrm? Then yes.&lt;/p&gt;
+
+&lt;p&gt;Do you use Relx? With Elixir? Then yes.&lt;/p&gt;
+
+&lt;p&gt;With Erlang? Not yet, but eventually.&lt;/p&gt;
+
+&lt;h2 id=&#34;what-is-distillery&#34;&gt;What is Distillery?&lt;/h2&gt;
+
+&lt;p&gt;Distillery is effectively a rewrite of release handling for Elixir. It is intended to be a replacement of
+Exrm, my library for building releases in Elixir projects. It is also a goal of the project to potentially
+be a part of Mix itself as the standard tooling for releases in Elixir. It may or may not make sense to do so,
+and for prototyping it needed to live as it&amp;rsquo;s own project anyway, so here we are.&lt;/p&gt;
+
+&lt;p&gt;Distillery is written in Elixir, with no dependencies. It takes full advantage of the knowledge about the current
+project and it&amp;rsquo;s dependencies provided by Mix, this allows Distillery to do things like automatically determine
+what applications are required in the release, even if you have dependencies which are missing an application
+in their &lt;code&gt;mix.exs&lt;/code&gt;, Distillery will still make sure it&amp;rsquo;s added.&lt;/p&gt;
+
+&lt;p&gt;This rewrite also let me address some of the issues I, and others, had with how Exrm did certain things. One of
+the big differences is in the handling of umbrella projects. When I first started with Elixir, umbrella projects
+were very uncommon - so much so that I did not even support them initially. Over time of course, the complexity
+of applications being built grew, and so did the usage and support for umbrellas in Elixir. Exrm still is very
+simple in it&amp;rsquo;s handling of umbrellas - you can build a release of one or more apps in the umbrella individually,
+but it is not possible to build a release containing multiple apps. Distillery allows you to build releases containing
+any combination of apps in the umbrella. Take a look at the &lt;a href=&#34;https://hexdocs.pm/distillery/umbrella-projects.html&#34;&gt;Umbrella Projects&lt;/a&gt;
+page in Distillery&amp;rsquo;s docs for an overview.&lt;/p&gt;
+
+&lt;p&gt;Likewise, Exrm did not have the a way to define multiple configurations of a release. For example, you may want
+to configure releases differently for dev/staging/prod beyond just what&amp;rsquo;s in your &lt;code&gt;config.exs&lt;/code&gt;. Distillery has
+support for this via &lt;a href=&#34;https://hexdocs.pm/distillery/configuration.html&#34;&gt;Environments&lt;/a&gt;.
+It also has support for defining more than one release, which Exrm did not support.&lt;/p&gt;
+
+&lt;p&gt;The new configuration file is the source of much of this flexibility, and is also much nicer, resembling the style
+of configuration you are already used to in &lt;code&gt;config.exs&lt;/code&gt;. It is different of course, but just as easy to pick up.&lt;/p&gt;
+
+&lt;p&gt;I also took this time to revamp error handling, warnings, etc., so that as a developer, you have much more useful
+errors and warnings to work from when encountering issues. This is an area of constant improvement, but the
+state of affairs is much better than it was in Exrm.&lt;/p&gt;
+
+&lt;p&gt;Distillery also introduces &lt;a href=&#34;https://hexdocs.pm/distillery/boot-hooks.html&#34;&gt;event hooks&lt;/a&gt;,
+&lt;a href=&#34;https://hexdocs.pm/distillery/custom-commands.html&#34;&gt;custom commands&lt;/a&gt;, and EEx template overlays.
+None of which were present in Exrm.&lt;/p&gt;
+
+&lt;h2 id=&#34;what-s-wrong-with-exrm&#34;&gt;What&amp;rsquo;s wrong with Exrm?&lt;/h2&gt;
+
+&lt;p&gt;Other than some of the deficiencies outlined above, Exrm continues to work well, and there are a large
+number of people using it today. However it is ultimately architected
+around Relx being at it&amp;rsquo;s core. Relx was responsible for most of the heavy lifting of building the release.
+Because this responsibility lay within Relx, Exrm could do nothing to make Relx smarter about Elixir applications.&lt;/p&gt;
+
+&lt;p&gt;There were also times where necessary fixes to Relx dependencies were made, but Relx was not updated in sync,
+leaving users unable to upgrade easily to address issues.&lt;/p&gt;
+
+&lt;p&gt;Additionally, there is a lot of technical debt that has accrued over time. It&amp;rsquo;s important to realize the Exrm has been
+around since roughly 0.11 or so of Elixir, and been through a great many of the major changes to the language and
+standard library. Likewise, people have come to rely on certain features which are better implemented in other ways,
+and this has made it difficult to make significant changes like the one represented by the difference between
+Distillery and Exrm.&lt;/p&gt;
+
+&lt;h2 id=&#34;what-s-wrong-with-relx&#34;&gt;What&amp;rsquo;s wrong with Relx?&lt;/h2&gt;
+
+&lt;p&gt;Nothing! I mean, in the sense that it&amp;rsquo;s been at the core of Exrm since day one, and is still an excellent tool.
+I am still a maintainer on the project, and will continue to help out where I can. That said, for Elixir projects,
+it&amp;rsquo;s not an ideal fit. It works just fine, but Distillery can be much smarter about how it does things. Additionally,
+Relx is still ultimately tailored around Erlang applications, thus booting a console of a Relx release means booting an Erlang shell,
+not IEx. Exrm fixed this by forking Relx&amp;rsquo;s boot script, but it was never ideal. Distillery is oriented around Elixir by
+default, but provides a path to booting with an Erlang shell if so desired. This means that eventually when I add support
+for using Distillery with rebar3, the correct shell can be chosen based on the build tool.&lt;/p&gt;
+
+&lt;h2 id=&#34;what-about-edeliver&#34;&gt;What about edeliver?&lt;/h2&gt;
+
+&lt;p&gt;I can&amp;rsquo;t speak too much about it, since I don&amp;rsquo;t use it myself, but I do know that it currently uses Exrm to build
+releases (and I believe it can use Relx as well). Ultimately, I would see Distillery replacing Exrm in edeliver,
+but currently that is not the case. As far as I&amp;rsquo;m aware, the comparison of these three tools does not impact edeliver
+to any significant degree, as it just needs a tool to package a release, and takes it from there. If anyone from
+the edeliver team reads this, and would like to connect on how to make the most use of Distillery, I&amp;rsquo;d be glad to do
+so!&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Proxied Streaming Uploads with Scala/Play</title>
+      <link>http://bitwalker.org/posts/2014-07-10-scala-streaming-file-uploads/</link>
+      <pubDate>Thu, 10 Jul 2014 10:30:05 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/posts/2014-07-10-scala-streaming-file-uploads/</guid>
+      <description>
+
+&lt;p&gt;I recently was working on a project using a mashup of technologies: Scala, Play Framework, Sqrrl/Accumulo, Microsoft SQL Server, Hadoop/HDFS, Hive, and some others. Needless to say, rampup was a bit like swallowing water from a firehose. I was brought on to help get a release completed by it&amp;rsquo;s deadline, so I wasn&amp;rsquo;t on the project for more than a month, but I did encounter one very fun problem that I felt like sharing. To briefly summarize the context: The project was composed of two Play applications, a web frontend, which served up the assets for the UI and handled proxying requests to the API, which was behind a firewall, and therefore not accessible from the internet. Users needed to be able to upload files containing potentially sensitive data, of varying types, and of unrestricted size (though I would guess the average file size would hover between 25-100mb). These files were ultimately stored in HDFS, behind yet another firewall, which is only accessible by the API server. Not your average file upload scenario.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-scenario&#34;&gt;The Scenario&lt;/h2&gt;
+
+&lt;p&gt;So the requirements are as follows:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Files cannot be stored on the web or API server (potential security risk)&lt;/li&gt;
+&lt;li&gt;Files should not be stored in memory during uploads, due to the combination of large file sizes and potential for large amounts of concurrent uploads consuming too much of the servers memory.&lt;/li&gt;
+&lt;li&gt;The final destination of the files is HDFS.&lt;/li&gt;
+&lt;li&gt;Files also need to be downloadable, with the same constraints&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;My final solution was the following:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Write a custom streaming body parser for streaming uploads from the client straight to the API server&lt;/li&gt;
+&lt;li&gt;Write a custom streaming body parser for streaming uploads from the web server directly to HDFS&lt;/li&gt;
+&lt;li&gt;Use Apache Tika to detect content type of the upload, and store that with other metadata in SQL&lt;/li&gt;
+&lt;li&gt;When a download of a file is requested, use a custom iteratee from the web server to stream the chunked response data  from the API, straight to the client, while preserving the response headers containing file metadata.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;What initially seemed relatively straight forward, turned out to be one of the most complex but interesting bits of code I&amp;rsquo;ve written in quite some time. There&amp;rsquo;s a lot of code coming, because I&amp;rsquo;d like to share the entire solution (with project-specific bits stripped out), so buckle up.&lt;/p&gt;
+
+&lt;h2 id=&#34;stage-1-client-web&#34;&gt;Stage 1 - Client -&amp;gt; Web&lt;/h2&gt;
+
+&lt;p&gt;Let&amp;rsquo;s begin with the first stage of the upload process, streaming files from the client to the API, via the web application. First, we have our controller:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;package controllers
+
+import play.api.mvc._
+import controllers.traits.Secured
+import util.parsers.StreamingBodyParser._
+
+object ApiProxyController extends Controller with Secured {
+
+  def makeFileUploadRequest(endpointPath: String) = AuthenticatedAction(streamingBodyParser(endpointPath)) {
+    (request) =&amp;gt; {
+      val uploadResult = request.body.files(0).ref
+      uploadResult.fold(
+        err     =&amp;gt; BadRequest(err.errorMessage),
+        success =&amp;gt; Ok(success.body)
+      )
+    }
+  }
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The only things to note here are that we do user authentication at this point, using a custom action, which takes an implementation of &lt;code&gt;BodyParser&lt;/code&gt;. The custom streaming body parser needs to know the endpoint we&amp;rsquo;re sending the file to, so we use a partially applied constructor function in order to provide that information. The body of the action here is executed once parsing of the body has completed, so all we have to do at that point is check the result of the upload, which in this case is an instance of &lt;code&gt;Either[StreamingError, StreamingSuccess]&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Next, we have our custom streaming body parser. This is a big one, so I&amp;rsquo;m going to use comments in the code to describe notable features instead of showing you code and then talking about it. I&amp;rsquo;ll summarize some things before moving on though.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;package util.parsers
+
+import play.api.mvc.{BodyParser, RequestHeader}
+import play.api.mvc.BodyParsers.parse
+import parse.Multipart.PartHandler
+import play.api.mvc.MultipartFormData.FilePart
+import java.io.{PrintWriter, OutputStreamWriter, OutputStream}
+import java.net.{URL, URLConnection, HttpURLConnection}
+import play.api.libs.iteratee.{Cont, Done, Input, Iteratee}
+import models.{ApiRequest, AuthUser}
+
+/**
+ * These two classes represent the success or failure result of the upload,
+ * if it succeeded, StreamingSuccess.body will contain the response body from
+ * the API. If it fails, StreamingError.errorMessage will contain the error message
+ * received in the response body.
+ */
+case class StreamingSuccess(body: String)
+case class StreamingError(errorMessage: String)
+
+/**
+ * This companion object contains the constructor for our custom BodyParser,
+ * as well as the logic for constructing the output stream to the API.
+ */
+object StreamingBodyParser {
+  /**
+   * If you recall, we partially apply the API endpoint path in the controller when providing
+   * the request body parser to use. In turn, the action will invoke the partial function
+   * when it begins parsing the request.
+   */
+  def streamingBodyParser(endpointPath: String) = BodyParser { request =&amp;gt;
+    // Use Play&#39;s built in multipart/form-data parser, with our own FilePartHandler.
+    // Essentially, Play will handle parsing the normal form data, we&#39;ll handle parsing the file
+    parse.multipartFormData(new StreamingBodyParser(streamConstructor(endpointPath, request))
+      .streamingFilePartHandler(request))
+      .apply(request)
+  }
+
+  /**
+   * This function constructs an HttpURLConnection object to the provided endpoint path,
+   * with the necessary authentication headers, as well as headers to setup the chunked
+   * streaming mode. As you may have noticed, it&#39;s intended to be partially applied by
+   * first providing the endpoint path and request object, then invoking the resulting
+   * function when we want to produce the connection object.
+   */
+  private def streamConstructor(endpointPath: String, request: RequestHeader): Option[HttpURLConnection] = {
+    // This is a bit of project-specific logic, but basically we&#39;re validating
+    // that the request is authenticated before opening the request to the API
+    AuthUser.buildFromSession(request.session) match {
+      case Some(user) =&amp;gt; {
+        // Again, internals, all we&#39;re doing here is building the authentication headers,
+        // for example, Authorization, with the API token for the user
+        val headers = ApiRequest.buildRequest(request, user.authToken).buildHeaders
+
+        // Construct the request connection to the API. It will always be a POST, with
+        // chunked streaming mode enabled, with 1mb chunks, with output enabled
+        val url = new URL(config.Global.API_ENDPOINT + endpointPath)
+        val con = url.openConnection.asInstanceOf[HttpURLConnection]
+        con.setRequestMethod(&amp;quot;POST&amp;quot;)
+        con.setChunkedStreamingMode(1024)
+        con.setDoOutput(true)
+
+        // Set auth headers
+        headers.foreach { header =&amp;gt;
+          con.setRequestProperty(header._1, header._2)
+        }
+
+        // Pass along request headers
+        request.headers.toSimpleMap.foreach(h =&amp;gt; con.setRequestProperty(h._1, h._2))
+
+        Some(con)
+      }
+      case None =&amp;gt; None
+    }
+  }
+
+}
+
+// Our custom BodyParser&#39;s constructor takes a function which produces an HttpURLConnection.
+class StreamingBodyParser(streamConstructor: () =&amp;gt; Option[HttpURLConnection]) {
+
+  /**
+   * This &amp;quot;handler&amp;quot; function actually produces a function which is the
+   * actual handler executed by Play when parsing files in the request.
+   */
+  def streamingFilePartHandler(request: RequestHeader):
+          PartHandler[FilePart[Either[StreamingError, StreamingSuccess]]] = {
+    // An execution context is required for the Iteratee below
+    import play.api.libs.concurrent.Execution.Implicits._
+
+    val CRLF = &amp;quot;\r\n&amp;quot;
+
+    // This produces the PartHandler function which is consumed by Play&#39;s
+    // multipartFormData body parser.
+    parse.Multipart.handleFilePart {
+      case parse.Multipart.FileInfo(partName, filename, contentType) =&amp;gt;
+        // Reference to hold the error message if one is produced
+        var errorMsg: Option[StreamingError] = None
+
+        // Get the HTTP connection to the API
+        val connection = streamConstructor(filename).get
+
+        // Set content-type property for the API request
+        val boundary = System.currentTimeMillis().toHexString
+        connection.setRequestProperty(&amp;quot;Content-Type&amp;quot;, &amp;quot;multipart/form-data; boundary=&amp;quot; + boundary)
+
+        /**
+         * Create the output stream. If something goes wrong while trying to instantiate
+         * the output stream, assign the error message to the result reference, e.g.
+         *    `result = Some(StreamingError(&amp;quot;network error&amp;quot;))`
+         * and set the outputStream reference to `None`; the `Iteratee` will then do nothing
+         * and the error message will be passed to the `Action`.
+         */
+        val outputStream: Option[OutputStream] = try {
+          Some(connection.getOutputStream())
+        } catch {
+          case e: Exception =&amp;gt; {
+            errorMsg = Some(StreamingError(e.getMessage))
+            None
+          }
+        }
+
+        // Create print writer for writing out multipart form data
+        val writer = outputStream match {
+          case Some(os) =&amp;gt; {
+            val pw = new PrintWriter(new OutputStreamWriter(os))
+            val charset = &amp;quot;UTF-8&amp;quot;
+            // Send form parameters.
+            request.queryString.foreach { queryStrings =&amp;gt;
+              pw.append(&amp;quot;--&amp;quot; + boundary)
+                .append(CRLF)
+                .append(&amp;quot;Content-Disposition: form-data; name=\&amp;quot;&amp;quot; + queryStrings._1 + &amp;quot;\&amp;quot;&amp;quot;)
+                .append(CRLF)
+                .append(s&amp;quot;Content-Type: text/plain; charset=$charset&amp;quot;)
+                .append(CRLF)
+                .append(CRLF).append(queryStrings._2.mkString)
+                .append(CRLF)
+                .flush()
+            }
+
+            // Send binary file header
+            pw.append(&amp;quot;--&amp;quot; + boundary)
+              .append(CRLF)
+              .append(&amp;quot;Content-Disposition: form-data; name=\&amp;quot;file\&amp;quot;; filename=\&amp;quot;&amp;quot; + filename + &amp;quot;\&amp;quot;&amp;quot;)
+              .append(CRLF)
+            val fileType = URLConnection.guessContentTypeFromName(filename)
+            pw.append(&amp;quot;Content-Type: &amp;quot; + contentType.getOrElse(fileType)
+              .append(CRLF)
+              .append(&amp;quot;Content-Transfer-Encoding: binary&amp;quot;)
+              .append(CRLF)
+              .append(CRLF)
+              .flush()
+            Some(pw)
+          }
+          case None =&amp;gt; None
+        }
+
+        /**
+         * This is the interesting bit. This fold function pumps file data from
+         * the input stream to the output stream in chunks. Each step will receive
+         * one of the Input types, which determines whether we are done parsing, should
+         * skip the current chunk (Empty), or call the parser on the chunk before
+         * continuing. You can think of this as a reduce operation on the input
+         * stream, using the output stream as the accumulator, where each reduction
+         * pushes the chunk of data received from the input stream to the output stream.
+         */
+        def fold[E, A](state: A)(f: (A, E) =&amp;gt; A): Iteratee[E, A] = {
+          def step(s: A)(i: Input[E]): Iteratee[E, A] = i match {
+            // Hit EOF, we&#39;re done parsing
+            case Input.EOF   =&amp;gt; Done(s, Input.EOF)
+            // If the chunk is empty, skip this chunk and continue
+            case Input.Empty =&amp;gt; Cont[E, A](i =&amp;gt; step(s)(i))
+            // We have a non-empty chunk, so call our parser function `f` with the data.
+            case Input.El(e) =&amp;gt; {
+              val s1 = f(s, e)
+              // if an error occurred, set Iteratee to Done
+              errorMsg match {
+                case Some(result) =&amp;gt; Done(s, Input.EOF)
+                case None =&amp;gt; Cont[E, A](i =&amp;gt; step(s1)(i))
+              }
+            }
+          }
+          Cont[E, A](i =&amp;gt; step(state)(i))
+        }
+
+        /**
+         * And here is where we make use of the fold function from above. We
+         * give it the output stream as it&#39;s accumulator, and a callback function which
+         * takes two parameters, the current state of the Iteratee (the output stream)
+         * and the data to parse, which will be a byte array. This produces an Iteratee,
+         * which will eventually produce Option[OutputStream] as it&#39;s result. We map over
+         * the Iteratee (called when the Iteratee is finished executing) in order to clean
+         * up the resources used, write out the last bit of form data, and get the response
+         * from the API.
+         */
+        fold[Array[Byte], Option[OutputStream]](outputStream) { (os, data) =&amp;gt;
+          os.foreach { _.write(data) }
+          os
+        }.map { os =&amp;gt;
+          // Flush the output stream
+          os.foreach { _.flush }
+          // Write out the end of the multipart form-data
+          writer.foreach { w =&amp;gt;
+            w.append(CRLF).flush
+            w.append(&amp;quot;--&amp;quot; + boundary + &amp;quot;--&amp;quot;).append(CRLF).flush
+          }
+          // Close the stream and return the final result
+          os.foreach { _.close }
+          errorMsg match {
+            case Some(result) =&amp;gt; Left(result)
+            case None =&amp;gt;
+              // Check the result for errors
+              val responseCode = connection.getResponseCode
+              if (400 &amp;lt;= responseCode &amp;amp;&amp;amp; responseCode &amp;lt; 600) {
+                val errorResponse = connection.getErrorStream
+                val error = scala.io.Source.fromInputStream(errorResponse).mkString
+                Left(StreamingError(s&amp;quot;$responseCode: $error&amp;quot;))
+              } else {
+                val responseStream = scala.io.Source.fromInputStream(connection.getInputStream)
+                Right(StreamingSuccess(responseStream.mkString))
+              }
+          }
+        }
+    }
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So hopefully I haven&amp;rsquo;t lost you. Just to recap, we&amp;rsquo;re using a custom BodyParser in order to provide our own FilePartHandler. The former is required for any controller action in a Play application in order to properly parse the request body, the latter is used specifically in multipart/form-data requests to handle binary file data. The FilePartHandler uses iteratees to handle each FilePart (chunk of data, usually a byte array). Iteratees are a method for sequentially processing input data with accumulated state. In the case above, the accumulated state will always be the output stream, because at each step of the sequence, we&amp;rsquo;re just pushing the data in to the output stream. Another way of thinking about it is to consider the output stream a type of collection. If instead of an output stream, we had used an array, when the iteratee finished executing, we&amp;rsquo;d have a byte array of the file data instead of an output stream.&lt;/p&gt;
+
+&lt;p&gt;So at this point we&amp;rsquo;ve received a request to upload a file from the user, authenticated them, opened a proxied request to the API, and started pumping file data through. It&amp;rsquo;s about to get even more fun :)&lt;/p&gt;
+
+&lt;h2 id=&#34;stage-2-web-api&#34;&gt;Stage 2 - Web -&amp;gt; API&lt;/h2&gt;
+
+&lt;p&gt;The next step is receiving the request from the web server to the API. From the perspective of the API server, the request is no different than if it came from a browser. Again we&amp;rsquo;ll have a custom BodyParser, one which is different enough that I&amp;rsquo;ll show the code for it as well, but I&amp;rsquo;ll strip out any duplicate information. A key difference here is that the API is not proxying the request to another web server (at least from it&amp;rsquo;s perspective). Instead, it contains an abstraction around how it stores uploads. This abstraction is defined via the StorageProvider trait, which is injected at runtime with either a local file storage provider, or an HDFS provider. I&amp;rsquo;m not going to show the concrete implementations of these providers, since they are pretty straightforward, but I will show you the trait, since it&amp;rsquo;s key to understanding how we&amp;rsquo;ve abstracted away the concept of storage within the API.&lt;/p&gt;
+
+&lt;p&gt;Let&amp;rsquo;s start with the StorageProvider trait:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;package util.storage
+
+import config.ConfigFactory
+import play.api.libs.iteratee.Enumerator
+
+trait StorageProvider extends ConfigFactory {
+
+  /**
+   * Write a file to storage
+   * @param data The byte data to write
+   * @param fileName The name of the file once stored
+   */
+  def writeFile(data: Array[Byte], fileName: String)
+
+  /**
+   * Gets a stream to the provided filename which can be written to
+   * @param fileName The name of the file to stream data to
+   */
+  def getWriteableStream(fileName: String): StreamableResource
+
+  /**
+   * Read a file and return it in an Array[Byte].
+   * @param fileName The name of the file to read
+   * @return
+   */
+  def readFile(fileName: String): Array[Byte]
+
+  /**
+   * Given a filename, produce an Enumerator[Array[Byte]] for streaming the file to the consumer
+   * @param fileName The name of the file to stream
+   * @return
+   */
+  def getReadableStream(fileName: String): Enumerator[Array[Byte]]
+
+  /**
+   * Delete a file from storage
+   * @param fileName The name of the file to delete
+   */
+  def deleteFile(fileName: String)
+
+  /**
+   * Detect a given file&#39;s content type
+   * Uses a combination of reading markers in the file&#39;s header,
+   * as well as taking the extension into account if markers aren&#39;t
+   * enough. Returns application/octet-stream if no type can be determined
+   * @param fileName
+   * @return
+   */
+  def getFileType(fileName: String): String
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Nothing special there, pretty much just an abstraction around typical file operations we all use day to day. As long as your implementation has the ability to open input/output streams, and read/write/delete files, you can store files however you want.&lt;/p&gt;
+
+&lt;p&gt;Next up, you&amp;rsquo;ll need to know about this small class, &lt;code&gt;StreamableResource&lt;/code&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;case class StreamableResource(stream: Option[OutputStream], resource: Option[Closeable]) extends Closeable {
+  override def close = resource.foreach(_.close)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This exists because a StorageProvider implementation likely has a resource connected to the open stream, which will need to be properly cleaned up when streaming is complete.&lt;/p&gt;
+
+&lt;p&gt;Alright, let&amp;rsquo;s dig in to the controller!&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;package controllers
+
+import util.storage.StorageProvider
+import util.controller.ApiSecuredController
+import play.api.mvc._
+import javax.inject.{Inject, Singleton}
+import providers._
+import play.api.Logger
+import util.parsers.StreamingBodyParser._
+
+@Singleton
+class ApiController @Inject()(
+  fileProvider:    FileProvider,
+  storageProvider: StorageProvider
+) extends Controller with ApiSecuredController {
+
+  /**
+   * Similarly to before, e&#39;re creating a new instance of our custom BodyParser, which takes
+   * a function receiving a StorageProvider, and producing a StreamableResource
+   */
+  def uploadFile() = Action(streamingBodyParser(streamConstructor(storageProvider))) {
+    (request) =&amp;gt; {
+      // Act on the result of parsing/storing the uploaded file
+      request.body.files(0).ref.fold(
+        // Parsing/storing failed
+        err     =&amp;gt; BadRequest(err.errorMessage),
+        // Parsing/storing succeeded
+        success =&amp;gt; {
+          // If you need access to the form parameters...
+          val params = request.body.asFormUrlEncoded
+          // Save metadata record for file
+          try {
+            val contentType = storageProvider.getFileType(success.filename)
+            val metadata    = fileProvider.createFile(contentType, success.filename)
+            Ok(Json.toJson(metadata.id))
+          } catch {
+            case e: Exception =&amp;gt;
+              Logger.error(s&amp;quot;Failed to create file: ${e.getMessage}&amp;quot;)
+              BadRequest(e.getMessage)
+          }
+        }
+      )
+    }
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;And now for the API&amp;rsquo;s custom body parser:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;object StreamingBodyParser {
+  /**
+   * The main difference here is that we are generating our output stream differently than in the
+   * web project.
+  def streamingBodyParser(getStream: String =&amp;gt; Option[StreamableResource]) = BodyParser { request =&amp;gt;
+    parse.multipartFormData(new StreamingBodyParser(getStream).streamingFilePartHandler(request))
+      .apply(request)
+  }
+
+  /**
+   * Here is where that difference is implemented. Our stream constructor takes a StorageProvider instance, and
+   * returns a function that when called with a filename, will open an output stream to that file, and return it
+   * wrapped as a StreamableResource.
+   */
+  def streamConstructor(storageProvider: StorageProvider)(filename: String): Option[StreamableResource] = {
+    Some(storageProvider.getWriteableStream(filename))
+  }
+}
+
+class StreamingBodyParser(streamConstructor: String =&amp;gt; Option[StreamableResource]) {
+
+  def streamingFilePartHandler(request: RequestHeader):
+        PartHandler[FilePart[Either[StreamingError, StreamingSuccess]]] = {
+    /**
+     * Most of the following is either the same or similar to the web project&#39;s
+     * implementation, I&#39;ll highlight the important changes with comments.
+     */
+    import play.api.libs.concurrent.Execution.Implicits._
+
+    parse.Multipart.handleFilePart {
+      case parse.Multipart.FileInfo(partName, filename, contentType) =&amp;gt;
+
+        // Get StreamableResource by invoking streamConstructor
+        // Get output stream from StreamableResource
+        // Define fold function, same as before
+
+        /**
+         * This is almost identical to the web implementation, but
+         * closes the StreamableResource as well as the output stream.
+         * It also doesn&#39;t need to read any kind of response, so there&#39;s
+         * a lot less going on.
+         */
+        fold[Array[Byte], Option[OutputStream]](outputStream) { (os, data) =&amp;gt;
+          os foreach { _.write(data) }
+          os
+        }.map { os =&amp;gt;
+          os foreach { _.close }
+          streamResource foreach { _.close }
+          errorMsg match {
+            case Some(result) =&amp;gt;
+              // Failed
+              Left(result)
+            case None =&amp;gt;
+              // Succeeded
+              Right(StreamingSuccess(filename))
+          }
+        }
+    }
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So the above closes the loop on our file upload process. The client makes a request to the web server, the request body is read in chunks and piped via a new request to the API server, the API server reads the request body in chunks, and pipes that data via the storage provider to it&amp;rsquo;s final destination. During the whole process, the file itself is never stored in memory.&lt;/p&gt;
+
+&lt;p&gt;What about downloads though? Let&amp;rsquo;s take a look:&lt;/p&gt;
+
+&lt;h2 id=&#34;downloading-files&#34;&gt;Downloading Files&lt;/h2&gt;
+
+&lt;p&gt;Let&amp;rsquo;s start with the API controller action first on this one, since it&amp;rsquo;s the simplest:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;/**
+ * As you may have noticed in the upload portion, we&#39;re storing file metadata
+ * in the database, and returning the ID to the client. That is the id used in
+ * this request.
+ */
+def downloadFile(fileId: Long) = Action(parse.anyContent) {
+  (request) =&amp;gt; {
+    fileProvider.getFile(fileId) match {
+      case Some(file) =&amp;gt; {
+        /**
+         * Nothing to crazy here, we&#39;re telling Play to stream the
+         * response body, using the stream provided by the storage provider,
+         * and ensuring that the content-type header is set properly
+         */
+        SimpleResult(
+          header = ResponseHeader(200, Map(CONTENT_TYPE -&amp;gt; file.fileType)),
+          body = storageProvider.getReadableStream(file.fileName)
+        )
+      }
+      case None =&amp;gt; {
+        NotFound
+      }
+    }
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The interesting bit is here in the web project&amp;rsquo;s controller action:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;def makeFileDownloadRequest(endpointPath: String) = AuthenticatedAction(parse.anyContent) {
+  (request) =&amp;gt; {
+    import play.api.libs.concurrent.Execution.Implicits._
+    import play.api.libs.iteratee.{Input, Iteratee}
+    import scala.concurrent.{promise, Await}
+    import scala.concurrent.duration._
+
+    // First we have to create a new request, containing all the required headers
+    val user        = AuthUser.buildFromSession(request.session).get
+    val authHeaders = ApiRequest.buildRequest(request, user.authToken).buildHeaders.toMap
+    val reqHeaders  = request.headers.toSimpleMap
+    val apiHeaders  = reqHeaders ++ authHeaders
+    var url = WS.url(config.Global.API_ENDPOINT + endpointPath)
+    apiHeaders.foreach { case (key, value) =&amp;gt; {
+      url = url.withHeaders(key -&amp;gt; value)
+    }}
+
+    // Create promises for the iteratee over file data, and the result
+    val iterateePromise = promise[Iteratee[Array[Byte], Unit]]
+    val resultPromise = promise[SimpleResult]
+
+    // Make the download request to the API
+    val req = url.get { responseHeaders: ResponseHeaders =&amp;gt;
+      // Resolve the result promise using the response from the API
+      resultPromise.success(
+        Ok.stream({content: Iteratee[Array[Byte], Unit] =&amp;gt;
+          // Resolve the iteratee promise with the client output iteratee
+          iterateePromise.success(content)
+        }).withHeaders(
+          &amp;quot;Content-Type&amp;quot; -&amp;gt; responseHeaders.headers.getOrElse(&amp;quot;Content-Type&amp;quot;, Seq(&amp;quot;application/octet-stream&amp;quot;)).head,
+          &amp;quot;Connection&amp;quot;-&amp;gt;&amp;quot;Close&amp;quot;,
+          &amp;quot;Transfer-Encoding&amp;quot;-&amp;gt; responseHeaders.headers.getOrElse(&amp;quot;Transfer-Encoding&amp;quot;, Seq(&amp;quot;chunked&amp;quot;)).head
+        )
+      )
+      // Run the iteratee for the response to the client
+      Iteratee.flatten(iterateePromise.future)
+    }
+    // Handle request completion by sending EOF to the client
+    req.onSuccess {
+      case ii =&amp;gt; ii.feed(Input.EOF)
+    }
+    // Handle request failure
+    req.recover {
+      case t: Throwable =&amp;gt; {
+        resultPromise.tryFailure(t)
+      }
+    }
+    // Return control back to Play for handling
+    Await.result(resultPromise.future, 30 seconds)
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It&amp;rsquo;s a bit hard to follow with all the promises, futures, iteratees, etc - but the gist is that as soon as we get response headers from the API, we&amp;rsquo;ll send those to the client, with status code 200, specifying a chunked transfer encoding, as well as the content type for the response body. As the response body from the API begins to download, it will pipe the chunked data straight into the response to the client. Unfortunately, it&amp;rsquo;s not very intuitive code to read, and this section of code is the one that has me constantly double checking my work to make sure I didn&amp;rsquo;t mess something up - it just doesn&amp;rsquo;t read as naturally as I would like.&lt;/p&gt;
+
+&lt;h2 id=&#34;final-thoughts&#34;&gt;Final thoughts&lt;/h2&gt;
+
+&lt;p&gt;I have some ideas around how this might be improved. For one, I feel like it should be possible to extract the proxied request logic from the web server&amp;rsquo;s StreamingBodyParser into an implementation of StorageProvider, and thereby use a single StreamingBodyParser implementation. I haven&amp;rsquo;t dug in to that to see what the gotchas might be though. I haven&amp;rsquo;t done any performance benchmarks, but in my testing it seemed like uploads and downloads were snappy. Overall I feel like it&amp;rsquo;s a fairly solid solution, but I&amp;rsquo;m waiting to see where it breaks once heavy load becomes more of a concern.&lt;/p&gt;
+
+&lt;p&gt;If you have improvements, thoughts, whatever, please leave a comment!&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Releases For Elixir</title>
+      <link>http://bitwalker.org/posts/2014-03-11-releases-for-elixir/</link>
+      <pubDate>Thu, 20 Mar 2014 01:00:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/posts/2014-03-11-releases-for-elixir/</guid>
+      <description>&lt;p&gt;Be forewarned, this post requires a fair amount of knowledge about Elixir or Erlang. Though the topic of hot code upgrades and downgrades is probably of interest to any dev who crosses the line in to ops on a regular basis, this particular post is going to be diving headlong into the madness that is Erlang releases, and how I&amp;rsquo;ve fixed them for Elixir.&lt;/p&gt;
+
+&lt;p&gt;I was hanging out in &lt;code&gt;#elixir-lang&lt;/code&gt; last week, when someone (I believe it was &lt;code&gt;tylerflint&lt;/code&gt;) brought up the issue of performing releases with Elixir. This had been a passively interesting topic to me, as it had been briefly mentioned a few times before, but I hadn&amp;rsquo;t actually heard of anyone doing them.&lt;/p&gt;
+
+&lt;p&gt;In case you are reading this post to get an idea of how hot code upgrades/downgrades work in Elixir/Erlang - releases are how you do so. It&amp;rsquo;s more than a little interesting, that something that is touted as a major feature of the Erlang VM is roughly equivalent to summoning deep magic, with incantations so arcane that only the most learned of magicians dare approach the subject.&lt;/p&gt;
+
+&lt;p&gt;Just to give you an idea, take a look &lt;a href=&#34;http://www.erlang.org/doc/design_principles/release_handling.html&#34;&gt;at this documentation&lt;/a&gt; describing the high level concepts around release handling. If that doesn&amp;rsquo;t scare you away, &lt;a href=&#34;http://www.erlang.org/doc/design_principles/appup_cookbook.html&#34;&gt;maybe this will&lt;/a&gt;. That last one describes the most critical aspect, how one release will upgrade (and downgrade) to another. It&amp;rsquo;s so important, that if you do it wrong, you might as well have not even done it in the first place, because either your app will crash, the upgrade will fail in unpredicatable ways, or it will upgrade, but perhaps reload a module instead of upgrade it in place. The general sentiment I&amp;rsquo;ve encountered is that people either don&amp;rsquo;t use releases, or they use releases, but just do rolling upgrades (taking a node offline, and restarting it using the new release). That seems fundamentally broken to me.&lt;/p&gt;
+
+&lt;p&gt;In the Erlang world, there is an excellent tool called Relx, which shields you from virtually all of the pain around most of the release tasks. The problem of course, is that Relx makes no attempt to help you with the appups, which again, is kind of the most critical aspect. In additon, it requires you to write your own build script over the top in order to call it with the appropriate configuration and parameters. Still, you get a lot of stuff for free out of Relx, and I think it&amp;rsquo;s an excellent tool - I think it can be better.&lt;/p&gt;
+
+&lt;p&gt;So &lt;code&gt;tylerflint&lt;/code&gt; asked about releases, and nobody had answers. So I told him I&amp;rsquo;d be interested in helping build a tool for it. He came back a few days later with an example project containing a handwritten &lt;code&gt;Makefile&lt;/code&gt;, &lt;code&gt;relx.config&lt;/code&gt;, and shell script to boot the release - and it worked great! Here in just a few days, he had put together a working tool that generated releases and allowed you to start it up with an Elixir shell. Unfortunately, it didn&amp;rsquo;t handle upgrades/downgrades, it required you to download and compile Elixir during execution, it depended on a specific version of ERTS (the Erlang Runtime System), and it wasn&amp;rsquo;t packaged in a way that could be easily brought in to any project.&lt;/p&gt;
+
+&lt;p&gt;So &lt;code&gt;exrm&lt;/code&gt;, the Elixir Release Manager, was born. The first iteration was essentially an Elixir wrapper (via a Mix task) around the &lt;code&gt;Makefile&lt;/code&gt;, &lt;code&gt;relx.config&lt;/code&gt;, and shell script he had written. It worked, but there were a lot of flaws. Over the past week or so, it has now evolved into a fully functional tool, which handles initial release, upgrades, and downgrades - all within a simple Mix task. Most importantly though, it does automatic appup generation. This is the secret sauce that I think will make releases in Elixir not only painless, but a recommended strategy for deploying to production. To give you an idea of what Elixir releases, via &lt;code&gt;exrm&lt;/code&gt;, look like today, here is all the commands necessary to execute a release, deploy it, start it, upgrade it, then downgrade it:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;mix release&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;&amp;lt;make changes to project&amp;gt;&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;mix release&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;mkdir -p /tmp/example&lt;/code&gt; (create deploy location)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;cp rel/example/**.tar.gz /tmp&lt;/code&gt; (copy release packages to target)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;cd /tmp/example &amp;amp;&amp;amp; tar -xf ../example-0.0.1.tar.gz&lt;/code&gt; (extract initial release)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example start&lt;/code&gt; (start your app)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example remote_console&lt;/code&gt; (if you want an &lt;code&gt;iex&lt;/code&gt; shell attached to the running node)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;mkdir -p releases/0.0.2&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;cp ../example-0.0.2.tar.gz releases/0.0.2/example.tar.gz&lt;/code&gt; (deploy the upgrade package)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example upgrade &amp;quot;0.0.2&amp;quot;&lt;/code&gt; (upgrade the node)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example downgrade &amp;quot;0.0.1&amp;quot;&lt;/code&gt; (downgrade the node)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;bin/example stop&lt;/code&gt; (stop the app)&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;I don&amp;rsquo;t know about you, but that&amp;rsquo;s about the simplest possible deployment process I&amp;rsquo;ve seen in any language. All of that could be automated even further using a CI server of some kind, and all without ever taking the running application offline, not even a dropped network connection. Now I feel like I understand the power of the Erlang VM, and what it means to have hot upgrades and downgrades - it&amp;rsquo;s an incredibly powerful feature. Sadly though, &lt;code&gt;exrm&lt;/code&gt; is only useful to an Elixir project, but a lot of the core logic could just as easily be built in Erlang as well.&lt;/p&gt;
+
+&lt;p&gt;In case you are curious about the automatic appup generation, it works as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Reads in the &lt;code&gt;.app&lt;/code&gt; of both the old and new release.&lt;/li&gt;
+&lt;li&gt;Finds all of the &lt;code&gt;.beam&lt;/code&gt; files in both the old and new release.&lt;/li&gt;
+&lt;li&gt;Determines what type of module each &lt;code&gt;.beam&lt;/code&gt; represents (application, supervisor, behavior, or standard module)&lt;/li&gt;
+&lt;li&gt;Determines what type of upgrade operation to apply for each type of module. For instance, supervisors will always be upgraded/downgraded via &lt;code&gt;code_change&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Determines the set difference between the old and new versions, and applies the appropriate action (load, upgrade, unload, downgrade) for each module. Upgrades are applied in order of their dependencies, and downgrades are applied in reverse order.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;And that&amp;rsquo;s it! I&amp;rsquo;m currently working with &lt;code&gt;tylerflint&lt;/code&gt; on making release configuration a breeze, likely using cuttlefish, with an Elixir DSL for defining schema files. There will be more developments in the near future, so if releases are important to you, and you have an Elixir project either in, or going to, production - stay tuned. For more info, check out the &lt;a href=&#34;https://github.com/bitwalker/exrm&#34;&gt;GitHub repository&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;If you have any ideas, suggestions, issues, constructive criticisms - please leave a comment, or open an issue on the tracker.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Learn by Example: Scala Parser Combinators</title>
+      <link>http://bitwalker.org/posts/2013-08-10-learn-by-example-scala-parser-combinators/</link>
+      <pubDate>Sat, 10 Aug 2013 22:28:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/posts/2013-08-10-learn-by-example-scala-parser-combinators/</guid>
+      <description>
+
+&lt;p&gt;One of the more common things you run into during software development is the need to parse arbitrary text for data.
+Typically, you might use regular expressions, or encode assumptions about the data format in the way you parse the text (think slicing a string at specific indices, splitting on commas, etc). Both of these are brittle, and require a lot of verbose code to properly handle all of the possible failure points. This might lead you to writing your own parser if you are committed enough - but this is a large undertaking for most developers. You have to learn how to write a parser, or learn a parser generator in order to even begin coding the solution to your particular use case. Scala has a fantastic solution to this problem however, and that solution is parser combinators.&lt;/p&gt;
+
+&lt;h2 id=&#34;what-are-parser-combinators&#34;&gt;What Are Parser Combinators&lt;/h2&gt;
+
+&lt;p&gt;Let&amp;rsquo;s start first by breaking down the term into it&amp;rsquo;s parts, parsers and combinators, and explaining what they are in case you aren&amp;rsquo;t up to speed. A parser is a function that takes a stream of input tokens, and converts them into a format (typically a data structure, such as a list or a tree) that is more easily consumed by your application. A combinator is simply a higher order function which combines two functions into a new function. So a parser combinator is just a function which combines two parsers into another parser.&lt;/p&gt;
+
+&lt;h2 id=&#34;how-to-use-them&#34;&gt;How To Use Them&lt;/h2&gt;
+
+&lt;p&gt;We are going to build a &lt;a href=&#34;http://en.wikipedia.org/wiki/Reverse_Polish_notation&#34;&gt;Reverse Polish Notation&lt;/a&gt; calculator as an example of how to apply parser combinators to a problem, so let&amp;rsquo;s start simple and build up. First, I want to go over the available combinators we&amp;rsquo;re going to use in this example:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;|&lt;/code&gt; is the alternation combinator. It says &amp;ldquo;succeed if either the left or right operand parse successfully&amp;rdquo;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;~&lt;/code&gt; is the sequential combinator. It says &amp;ldquo;succeed if the left operand parses successfully, and then the right parses successfully on the remaining input&amp;rdquo;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;~&amp;gt;&lt;/code&gt; says &amp;ldquo;succeed if the left operand parses successfully followed by the right, but do not include the left content in the result&amp;rdquo;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;&amp;lt;~&lt;/code&gt; is the reverse, &amp;ldquo;succeed if the left operand is parsed successfully followed by the right, but do not include the right content in the result&amp;rdquo;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;^^&lt;/code&gt;=&amp;gt; is the transformation combinator. It says &amp;ldquo;if the left operand parses successfully, transform the result using the function on the right&amp;rdquo;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;rep&lt;/code&gt; =&amp;gt; simply says &amp;ldquo;expect N-many repetitions of parser X&amp;rdquo; where X is the parser passed as an argument to &lt;code&gt;rep&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Now that we&amp;rsquo;ve covered what the available combinators are, our first step is to define how to parse a number:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;import scala.util.parsing.combinator._
+
+class ReversePolishCalculator extends JavaTokenParsers {
+    def num: Parser[Float] = floatingPointNumber ^^ (_.toFloat)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So, we import the parser combinators, and create a class with just our number parser for now. We extend JavaTokenParsers in order to bake in the ability to parse some text, and to gain access to the &lt;code&gt;floatingPointNumber&lt;/code&gt; parser. The &lt;code&gt;num&lt;/code&gt; function will match any floating point number, and convert it to a Float. The &lt;code&gt;floatingPointNumber&lt;/code&gt; parser simply matches text, it doesn&amp;rsquo;t do any conversion. If you were to look at the source for it, you would see that it is simply a regular expression parser:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;trait JavaTokenParsers extends RegexParsers {
+    def floatingPointNumber: Parser[String] = {
+        &amp;quot;&amp;quot;&amp;quot;-?(\d+(\.\d*)?|\d*\.\d+)([eE][+-]?\d+)?[fFdD]?&amp;quot;&amp;quot;&amp;quot;.r
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So at this point, our parser can match a number, that&amp;rsquo;s it. If that&amp;rsquo;s all we wanted, we could wire up a quick console app to parse floats like so:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;object Calculator extends ReversePolishCalculator {
+    def main(args: Array[String]) {
+        val result = parseAll(num, args(0))
+        println(s&amp;quot;Parsed $result&amp;quot;)
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This is mostly useless obviously, so let&amp;rsquo;s move on and define how to parse the operators our calculator can use:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;class ReversePolishCalculator extends JavaTokenParsers {
+    def num: Parser[Float] = floatingPointNumber ^^ (_.toFloat)
+    def operator: Parser[(Float, Float) =&amp;gt; Float] = (&amp;quot;*&amp;quot; | &amp;quot;/&amp;quot; | &amp;quot;+&amp;quot; | &amp;quot;-&amp;quot;) ^^ {
+        case &amp;quot;+&amp;quot; =&amp;gt; (x, y) =&amp;gt; x + y
+        case &amp;quot;-&amp;quot; =&amp;gt; (x, y) =&amp;gt; x - y
+        case &amp;quot;*&amp;quot; =&amp;gt; (x, y) =&amp;gt; x * y
+        case &amp;quot;/&amp;quot; =&amp;gt; (x, y) =&amp;gt; if (y &amp;gt; 0) (x / y) else 0.f
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &lt;code&gt;operator&lt;/code&gt; parser matches any of the operators listed, in the order they are specified - which is fantastic when you think about it, because we were able to encode the correct order of operations in the very same code which defines the operators themselves! This parser then transforms the operator into a function which maps two floats to a single float - which sounds an awful lot like how you would expect mathematical operations to work (applying an operator, or function, over two operands). We haven&amp;rsquo;t connected the dots just yet, but these two parsers are the cornerstone of the rest we will be adding. The next step is to define the property of Reverse Polish Notation that allows us to have N-many numbers before an operator (ex: &lt;code&gt;5 1 2 + 4 * 3 -&lt;/code&gt;). The parser for this is simple:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;class ReversePolishCalculator extends JavaTokenParsers {
+    def term: Parser[List[Float]] = rep(num)
+    def num: Parser[Float] = floatingPointNumber ^^ (_.toFloat)
+    def operator: Parser[(Float, Float) =&amp;gt; Float] = (&amp;quot;*&amp;quot; | &amp;quot;/&amp;quot; | &amp;quot;+&amp;quot; | &amp;quot;-&amp;quot;) ^^ {
+        case &amp;quot;+&amp;quot; =&amp;gt; (x, y) =&amp;gt; x + y
+        case &amp;quot;-&amp;quot; =&amp;gt; (x, y) =&amp;gt; x - y
+        case &amp;quot;*&amp;quot; =&amp;gt; (x, y) =&amp;gt; x * y
+        case &amp;quot;/&amp;quot; =&amp;gt; (x, y) =&amp;gt; if (y &amp;gt; 0) (x / y) else 0.f
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The &lt;code&gt;term&lt;/code&gt; function simply states that it will parse N-many floating point values (&lt;code&gt;rep&lt;/code&gt; stands for repeat), and return a list of floats as a result. We&amp;rsquo;re getting close to our final product here, the final step is to define how to parse mathematical expressions which our calculator can understand:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;class ReversePolishCalculator extends JavaTokenParsers {
+    def expr: Parser[Float] = rep(term ~ operator) ^^ {
+        // match a list of term~operator
+        case terms =&amp;gt;
+            // Each operand will be placed on the stack, and pairs will be popped off for each operation,
+            // replacing the pair with the result of the operation. Calculation ends when the final operator
+            // is applied to all remaining operands
+            var stack  = List.empty[Float]
+            // Remember the last operation performed, default to addition
+            var lastOp: (Float, Float) =&amp;gt; Float = (x, y) =&amp;gt; x + y
+            terms.foreach(t =&amp;gt;
+                // match on the operator to perform the appropriate calculation
+                t match {
+                    // append the operands to the stack, and reduce the pair at the top using the current operator
+                    case nums ~ op =&amp;gt; lastOp = op; stack = reduce(stack ++ nums, op)
+                }
+            )
+            // Apply the last operation to all remaining operands
+            stack.reduceRight((x, y) =&amp;gt; lastOp(y, x))
+    }
+    def term: Parser[List[Float]] = rep(num)
+    def num: Parser[Float] = floatingPointNumber ^^ (_.toFloat)
+    def operator: Parser[(Float, Float) =&amp;gt; Float] = (&amp;quot;*&amp;quot; | &amp;quot;/&amp;quot; | &amp;quot;+&amp;quot; | &amp;quot;-&amp;quot;) ^^ {
+        case &amp;quot;+&amp;quot; =&amp;gt; (x, y) =&amp;gt; x + y
+        case &amp;quot;-&amp;quot; =&amp;gt; (x, y) =&amp;gt; x - y
+        case &amp;quot;*&amp;quot; =&amp;gt; (x, y) =&amp;gt; x * y
+        case &amp;quot;/&amp;quot; =&amp;gt; (x, y) =&amp;gt; if (y &amp;gt; 0) (x / y) else 0.f
+    }
+
+    // Reduces a stack of numbers by popping the last pair off the stack, applying op, and pushing the result
+    def reduce(nums: List[Float], op: (Float, Float) =&amp;gt; Float): List[Float] = {
+        // Reversing the list lets us use pattern matching to destructure the list safely
+        val result = nums.reverse match {
+            // Has at least two numbers at the end
+            case x :: y :: xs =&amp;gt; xs ++ List(op(y, x))
+            // List of only one number
+            case List(x)      =&amp;gt; List(x)
+            // Empty list
+            case _            =&amp;gt; List.empty[Float]
+        }
+        result
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The comments explain the internals, but from a high level, our &lt;code&gt;expr&lt;/code&gt; parser states that it expects any number of floating point values (&lt;code&gt;term&lt;/code&gt;), followed by an operator (&lt;code&gt;~&lt;/code&gt; says that the left operand must be followed by the right operand in order to match), and that this term-followed-by-operator pair can repeat any number of times. Without the &lt;code&gt;rep&lt;/code&gt;, an expression could only consist of a set of numbers followed by a single operator - not very useful. With, it allows us to have multiple operations strung together (essentially, the difference between &lt;code&gt;5 1 2 +&lt;/code&gt; and &lt;code&gt;5 1 2 + 4 * 3-&lt;/code&gt;). The internals are less important, but in order to fufill the semantics of Reverse Polish Notation, operands are added to a stack as they are encountered, and for each operator encountered, the last two operands are popped off the stack, and replaced with the result of applying the operator. If there are more than two operands remaining when the last operator is encountered, we just apply that operator to each pair of operands until only the final result remains.&lt;/p&gt;
+
+&lt;p&gt;If you are new to Scala, the &lt;code&gt;reduce&lt;/code&gt; helper I added should be rather interesting to you (well, this whole article should..). If you haven&amp;rsquo;t witnessed the power of pattern matching before, this is a prime example of the kind of expressive power it contains. It is very simple and easy to read what we are doing here: reverse the list we are using as a stack, and if it contains two elements (x and y) followed by any number of other elements (xs), apply the operator function to x and y and put it back on the stack. If it&amp;rsquo;s a list of one element, do nothing, and if the stack doesn&amp;rsquo;t match those two states, it must be (or should be) empty. In many other languages, this kind of code would be much messier, and far more error prone.&lt;/p&gt;
+
+&lt;h2 id=&#34;the-final-product&#34;&gt;The Final Product&lt;/h2&gt;
+
+&lt;p&gt;The final, executable version of our Reverse Polish Notation calculator would look like the following after refactoring it to be more idiotmatic Scala:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;import scala.util.parsing.combinator._
+
+/**
+ * This trait provides the mathematical operations which the calculator can perform.
+ */
+trait Maths {
+  def add(x: Float, y: Float) = x + y
+  def sub(x: Float, y: Float) = x - y
+  def mul(x: Float, y: Float) = x * y
+  def div(x: Float, y: Float) = if (y &amp;gt; 0) (x / y) else 0.0f
+}
+
+/**
+ * This class is the complete Reverse Polish parser and calculator
+ * JavaTokenParsers is extended in order to use the floatingPointNumber parser
+ * Maths is extended to provide the underlying mathematical operations
+ */
+class ReversePolishCalculator extends JavaTokenParsers with Maths {
+  /**
+   * Takes an expression, which consists of N repetitions of a term followed by an operator
+   * In case you are wondering, the parser combinators used here are as follows:
+   *  |   =&amp;gt; The alternation combinator, it parses successfully if either the left or right side match
+   *  ~   =&amp;gt; This combinator forms a sequential combination of it&#39;s operands (ex. a~b expects a followed by b)
+   *  ~&amp;gt;  =&amp;gt; This combinator says &amp;quot;ensure the left operand exists, but don&#39;t include it in the result&amp;quot;
+   *  &amp;lt;~  =&amp;gt; This combinator says &amp;quot;ensure the right operand exists, but don&#39;t include it in the result&amp;quot;
+   *  ^^  =&amp;gt; This combinator says &amp;quot;if parsed successfully, transform the result using the block on the right&amp;quot;
+   *  rep =&amp;gt; This combinator says &amp;quot;expect zero or more repetitions of X&amp;quot;
+   */
+  def expr:   Parser[Float] = rep(term ~ operator) ^^ {
+    // match a list of term~operator
+    case terms =&amp;gt;
+      // Each operand will be placed on the stack, and pairs will be popped off for each operation,
+      // replacing the pair with the result of the operation. Calculation ends when the final operator
+      // is applied to all remaining operands
+      var stack  = List.empty[Float]
+      // Remember the last operation performed, default to addition
+      var lastOp: (Float, Float) =&amp;gt; Float = add
+      terms.foreach(t =&amp;gt;
+        // match on the operator to perform the appropriate calculation
+        t match {
+          // append the operands to the stack, and reduce the pair at the top using the current operator
+          case nums ~ op =&amp;gt; lastOp = op; stack = reduce(stack ++ nums, op)
+        }
+      )
+      // Apply the last operation to all remaining operands
+      stack.reduceRight((x, y) =&amp;gt; lastOp(y, x))
+  }
+  // A term is N factors
+  def term: Parser[List[Float]] = rep(factor)
+  // A factor is either a number, or another expression (wrapped in parens), converted to Float
+  def factor: Parser[Float] = num | &amp;quot;(&amp;quot; ~&amp;gt; expr &amp;lt;~ &amp;quot;)&amp;quot; ^^ (_.toFloat)
+  // Converts a floating point number as a String to Float
+  def num: Parser[Float] = floatingPointNumber ^^ (_.toFloat)
+  // Parses an operator and converts it to the underlying function it logically maps to
+  def operator: Parser[(Float, Float) =&amp;gt; Float] = (&amp;quot;*&amp;quot; | &amp;quot;/&amp;quot; | &amp;quot;+&amp;quot; | &amp;quot;-&amp;quot;) ^^ {
+    case &amp;quot;+&amp;quot; =&amp;gt; add
+    case &amp;quot;-&amp;quot; =&amp;gt; sub
+    case &amp;quot;*&amp;quot; =&amp;gt; mul
+    case &amp;quot;/&amp;quot; =&amp;gt; div
+  }
+
+  // Reduces a stack of numbers by popping the last pair off the stack, applying op, and pushing the result
+  def reduce(nums: List[Float], op: (Float, Float) =&amp;gt; Float): List[Float] = {
+    // Reversing the list lets us use pattern matching to destructure the list safely
+    val result = nums.reverse match {
+      // Has at least two numbers at the end
+      case x :: y :: xs =&amp;gt; xs ++ List(op(y, x))
+      // List of only one number
+      case List(x)      =&amp;gt; List(x)
+      // Empty list
+      case _            =&amp;gt; List.empty[Float]
+    }
+    result
+  }
+}
+
+object Calculator extends ReversePolishCalculator {
+  def main(args: Array[String]) {
+    println(&amp;quot;input: &amp;quot; + args(0))
+    println(&amp;quot;result: &amp;quot; + calculate(args(0)))
+  }
+
+  // Parse an expression and return the calculated result as a String
+  def calculate(expression: String) = parseAll(expr, expression)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;wrapping-up&#34;&gt;Wrapping Up&lt;/h2&gt;
+
+&lt;p&gt;And that&amp;rsquo;s it! An example of applying Scala&amp;rsquo;s parser combinators to an admittedly trivial problem, but it doesn&amp;rsquo;t take much to extend what you&amp;rsquo;ve learned here to more practical problems you may be facing every day. Feel free to leave a comment if you have any questions about this article, Scala, or parser combinators!&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
