@@ -6,8 +6,98 @@
     <description>Recent content in Programming on Bitwalker</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 21 Jul 2016 17:48:07 -0500</lastBuildDate>
+    <lastBuildDate>Thu, 04 Aug 2016 18:00:00 -0500</lastBuildDate>
     <atom:link href="http://bitwalker.org/categories/programming/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Elixir/Erlang Clustering in Kubernetes</title>
+      <link>http://bitwalker.org/posts/2016-08-04-clustering-in-kubernetes/</link>
+      <pubDate>Thu, 04 Aug 2016 18:00:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/posts/2016-08-04-clustering-in-kubernetes/</guid>
+      <description>&lt;p&gt;At work, our infrastructure is run on OpenShift Origin, a RedHat OSS project which
+is a bunch of nice tooling on top of Kubernetes. It&amp;rsquo;s been really pleasant to work with
+for the most part, though there have been some growing pains and lessons learned along
+the way. Since I was responsible for pushing to adopt it, and setting up the cluster, I&amp;rsquo;ve been
+sort of the go-to for edge cases and advice designing our applications around it. One of
+the first things that came up, and which I&amp;rsquo;ve spent a lot of time working with, is how to
+handle some of our Elixir/Erlang applications which need to form a cluster of nodes.&lt;/p&gt;
+
+&lt;p&gt;For those not entirely familiar, here&amp;rsquo;s a brief recap of how Erlang does distribution. Nodes
+must be configured to start in distributed mode, with a registered long or short name, and
+a magic cookie which will be used for authentication when connecting nodes. Typically you configure
+your node for distribution in &lt;code&gt;vm.args&lt;/code&gt; like so:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-elixir&#34;&gt;-name myapp@192.168.1.2
+-setcookie myapp
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The above will tell the VM on start up to enable distribution, register the node with the long name
+&lt;code&gt;myapp@192.168.1.2&lt;/code&gt; with the magic cookie &lt;code&gt;myapp&lt;/code&gt;. Other nodes which wish to connect to this node, must
+explicitly connect with &lt;code&gt;:net_adm.connect_node(:&#39;myapp@192.168.1.2&#39;)&lt;/code&gt;, be present in the &lt;code&gt;.hosts.erlang&lt;/code&gt;
+file read by those nodes, or one can rely on implicitly connecting when the node is referenced in a call
+to &lt;code&gt;:rpc.call/4&lt;/code&gt; or whatever. It&amp;rsquo;s important to note that the domain, i.e. &lt;code&gt;192.168.1.2&lt;/code&gt; in this case, must be
+routable. So just putting any old domain name in there is not a good idea. Anyway, once we&amp;rsquo;ve connected to
+the node, we can now talk to processes on the other node, etc.&lt;/p&gt;
+
+&lt;p&gt;All of this is pretty manual, other than the &lt;code&gt;.hosts.erlang&lt;/code&gt; file, which if you&amp;rsquo;re wondering what that is,
+here&amp;rsquo;s the excerpt from the Erlang manual:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;File .hosts.erlang consists of a number of host names written as Erlang terms. It is looked for in the current work directory, the user&#39;s home directory, and $OTP_ROOT (the root directory of Erlang/OTP), in that order.
+
+The format of file .hosts.erlang must be one host name per line. The host names must be within quotes.
+
+Example:
+
+    &#39;super.eua.ericsson.se&#39;.
+    &#39;renat.eua.ericsson.se&#39;.
+    &#39;grouse.eua.ericsson.se&#39;.
+    &#39;gauffin1.eua.ericsson.se&#39;.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Even that file though requires knowing in advance what hosts to connect to. If you&amp;rsquo;re familiar with Kubernetes,
+you&amp;rsquo;ve probably already realized by now that this is not really possible. Container IP addresses are dynamic, and even if
+they were static, dynamically scaling the number of replicas based on load means that you will have nodes joining/leaving
+the cluster.&lt;/p&gt;
+
+&lt;p&gt;So how does one handle clustering in such a dynamic environment? My first shot at solving this was to use Redis as
+a cluster registry. It worked fine, mostly, but I hated the dependency, and wanted something easily reusable across
+our other apps. My next shot at addressing those issues, was to build a library I recently released, called
+&lt;a href=&#34;https://github.com/bitwalker/swarm&#34;&gt;Swarm&lt;/a&gt;, which as part of it&amp;rsquo;s functionality, includes autoclustering via a UDP gossip
+protocol. This worked nicely in my test environment, which was not run under Kubernetes, but when I pushed it to our developlment
+environment in OpenShift, I found out that OpenShift does not currently route UDP packets over the pod network. Damn it.&lt;/p&gt;
+
+&lt;p&gt;It was at this point that I was doing some maintainence on one of our applications, and discovered that Kubernetes mounts
+an API token, and the current namespace, for the pod&amp;rsquo;s service account, into every container. This API token can be used to
+then query the Kubernetes API for the set of pods in a given service. Swarm is built with pluggable &amp;ldquo;cluster strategies&amp;rdquo;, so
+I wrote one to pull all pod IPs associated with services which match a given label selector, i.e. &lt;code&gt;app=myapp&lt;/code&gt;. It then polls
+the Kubernetes API every 5s and connects to new nodes when they appear. To be clear, since all you get from Kubernetes is the
+pod IP, you only have half of the node name you need for the &lt;code&gt;-name&lt;/code&gt; flag in &lt;code&gt;vm.args&lt;/code&gt;, but for my use case, I could simply
+share the same hostname, i.e. &lt;code&gt;myapp&lt;/code&gt;, and then use the pod IP to get the full node name. Success!&lt;/p&gt;
+
+&lt;p&gt;If you are running on Kubernetes, and want to cluster some Elixir/Erlang nodes, give &lt;a href=&#34;https://github.com/bitwalker/swarm&#34;&gt;Swarm&lt;/a&gt;
+a look. In the &lt;code&gt;priv&lt;/code&gt; directory, it has a &lt;code&gt;.yaml&lt;/code&gt; file containing the definition of a Role which will grant any user associated
+with that role, the ability to list endpoints (the set of pods in a service). To give you a quick run down of the steps required:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Create the &lt;code&gt;endpoints-viewer&lt;/code&gt; role using the Swarm-provided definition.&lt;/li&gt;
+&lt;li&gt;Grant the default serviceaccount in the namespace you plan to cluster in, the &lt;code&gt;endpoints-viewer&lt;/code&gt; role.&lt;/li&gt;
+&lt;li&gt;Configure Swarm with the node basename and label selector to use for locating nodes.&lt;/li&gt;
+&lt;li&gt;Start your app!&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;I should probably talk about Swarm in another blog post at some point, but it also provides a distributed global process
+registry, similar to &lt;code&gt;gproc&lt;/code&gt;, but is leaderless, and can handle a much larger number of registered processes. In addition
+to the process registry, it also does process grouping, so you can publish messages to all members of a group, or call
+all members and collect the results. Names can be any Erlang term, which gives you a great deal more flexibility with naming.
+It has it&amp;rsquo;s own tradeoffs vs &lt;code&gt;gproc&lt;/code&gt; though, so it isn&amp;rsquo;t necessarily the go-to solution for every problem, but was necessary
+for my own use cases at work because we&amp;rsquo;re an IoT platform, and have processes per-device which need to have messages routed
+to them wherever they are in the cluster.&lt;/p&gt;
+
+&lt;p&gt;Reach out on Twitter or GitHub if you have questions about my experiences, I&amp;rsquo;d love to know how other people are tackling
+these kinds of things!&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Distillery vs. Exrm vs. Relx</title>
