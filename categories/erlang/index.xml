@@ -2,11 +2,11 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Erlang on Bitwalker</title>
-    <link>http://bitwalker.org/categories/erlang/</link>
+    <link>http://bitwalker.org/categories/erlang/index.xml</link>
     <description>Recent content in Erlang on Bitwalker</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 04 Aug 2016 18:00:00 -0500</lastBuildDate>
+    <copyright>2016 Paul Schoenfelder</copyright>
     <atom:link href="http://bitwalker.org/categories/erlang/index.xml" rel="self" type="application/rss+xml" />
     
     <item>

@@ -2,11 +2,11 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Tutorials on Bitwalker</title>
-    <link>http://bitwalker.org/categories/tutorials/</link>
+    <link>http://bitwalker.org/categories/tutorials/index.xml</link>
     <description>Recent content in Tutorials on Bitwalker</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 20 Mar 2014 01:00:00 -0500</lastBuildDate>
+    <copyright>2016 Paul Schoenfelder</copyright>
     <atom:link href="http://bitwalker.org/categories/tutorials/index.xml" rel="self" type="application/rss+xml" />
     
     <item>

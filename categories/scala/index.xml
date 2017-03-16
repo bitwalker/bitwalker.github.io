@@ -2,11 +2,11 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Scala on Bitwalker</title>
-    <link>http://bitwalker.org/categories/scala/</link>
+    <link>http://bitwalker.org/categories/scala/index.xml</link>
     <description>Recent content in Scala on Bitwalker</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 10 Jul 2014 10:30:05 -0500</lastBuildDate>
+    <copyright>2016 Paul Schoenfelder</copyright>
     <atom:link href="http://bitwalker.org/categories/scala/index.xml" rel="self" type="application/rss+xml" />
     
     <item>
