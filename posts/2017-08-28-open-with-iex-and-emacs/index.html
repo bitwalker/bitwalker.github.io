@@ -48,30 +48,15 @@ work to my own workflow. I promised to write it up if I succeeded, so here we ar
 used by Elixir to open Emacs.app to the location of the module or module/function we want. Since Chris already wrote
 up the reasons for these scripts, I&rsquo;m going to keep this short and focus on the contents, where to place them, and the changes I made.</p>
 
-<p>First, we need the <code>get_current_project</code> command:</p>
+<p>First, we have to ensure <code>ELIXIR_EDITOR</code> is exported in our environment, since I use <code>fish</code>, this is how I did that in my
+<code>~/.config/fish/config.local.fish</code> file:</p>
 
-<pre><code class="language-sh">#!/usr/bin/env sh
-
-if git rev-parse --git-dir &gt; /dev/null 2&gt;&amp;1; then
-  echo `basename $(git rev-parse --show-toplevel)`
-else
-  echo `basename $(pwd)`
-fi
+<pre><code class="language-sh">set -x ELIXIR_EDITOR &quot;~/bin/emacs +__LINE__ __FILE__&quot;
 </code></pre>
 
-<p>In my environment, I placed this in <code>~/bin/get_current_project.sh</code>. Make sure it&rsquo;s set as executable.
-You can also just place it directly in <code>/usr/local/bin</code>.</p>
+<p>This tells Elixir to execute <code>~/bin/emacs</code> with the line and file of the thing we&rsquo;re opening as arguments.</p>
 
-<p>Next, we need the <code>emacs-elixir</code> command. Either place this in <code>/usr/local/bin</code> or symlink it there.</p>
-
-<pre><code class="language-sh">#!/usr/bin/env sh
-
-&quot;${HOME}&quot;/bin/emacs &quot;${@}&quot;
-</code></pre>
-
-<p>This script is just a shim to execute an <code>emacs</code> command I have which is used to open Emacs.app from the terminal.</p>
-
-<p>And here is the content of that script:</p>
+<p>That script looks like so:</p>
 
 <pre><code class="language-sh">#!/usr/bin/env sh
 EMACSPATH=/Applications/Emacs.app/Contents/MacOS
@@ -107,7 +92,7 @@ else
 fi
 </code></pre>
 
-<p>Make sure all of these scripts are set as executable with <code>chmod +x path/to/script</code>.</p>
+<p>Make sure that script is set as executable with <code>chmod +x path/to/script</code>.</p>
 
 <p>You&rsquo;re all set! Now you can test <code>open</code> in IEx:</p>
 
