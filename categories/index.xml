@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Categories on Bitwalker</title>
+    <link>http://bitwalker.org/categories/</link>
+    <description>Recent content in Categories on Bitwalker</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>2016 Paul Schoenfelder</copyright>
+    
+	<atom:link href="http://bitwalker.org/categories/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Clustering</title>
+      <link>http://bitwalker.org/categories/clustering/</link>
+      <pubDate>Thu, 04 Aug 2016 18:00:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/clustering/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Elixir</title>
+      <link>http://bitwalker.org/categories/elixir/</link>
+      <pubDate>Mon, 28 Aug 2017 21:19:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/elixir/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Emacs</title>
+      <link>http://bitwalker.org/categories/emacs/</link>
+      <pubDate>Mon, 28 Aug 2017 21:19:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/emacs/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Erlang</title>
+      <link>http://bitwalker.org/categories/erlang/</link>
+      <pubDate>Thu, 04 Aug 2016 18:00:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/erlang/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Kubernetes</title>
+      <link>http://bitwalker.org/categories/kubernetes/</link>
+      <pubDate>Thu, 04 Aug 2016 18:00:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/kubernetes/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Play</title>
+      <link>http://bitwalker.org/categories/play/</link>
+      <pubDate>Thu, 10 Jul 2014 10:30:05 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/play/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Programing</title>
+      <link>http://bitwalker.org/categories/programing/</link>
+      <pubDate>Mon, 10 Mar 2014 17:52:37 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/programing/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Programming</title>
+      <link>http://bitwalker.org/categories/programming/</link>
+      <pubDate>Mon, 28 Aug 2017 21:19:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/programming/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Releases</title>
+      <link>http://bitwalker.org/categories/releases/</link>
+      <pubDate>Thu, 21 Jul 2016 17:48:07 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/releases/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Scala</title>
+      <link>http://bitwalker.org/categories/scala/</link>
+      <pubDate>Thu, 10 Jul 2014 10:30:05 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/scala/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Tutorial</title>
+      <link>http://bitwalker.org/categories/tutorial/</link>
+      <pubDate>Sat, 10 Aug 2013 22:28:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/tutorial/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>Tutorials</title>
+      <link>http://bitwalker.org/categories/tutorials/</link>
+      <pubDate>Thu, 20 Mar 2014 01:00:00 -0500</pubDate>
+      
+      <guid>http://bitwalker.org/categories/tutorials/</guid>
+      <description></description>
+    </item>
+    
+  </channel>
+</rss>

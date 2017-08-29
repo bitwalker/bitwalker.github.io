@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  
+  <url>
+    <loc>http://bitwalker.org/posts/2017-08-28-open-with-iex-and-emacs/</loc>
+    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
+  </url>
   
   <url>
     <loc>http://bitwalker.org/posts/2016-08-04-clustering-in-kubernetes/</loc>
@@ -33,7 +39,7 @@
   
   <url>
     <loc>http://bitwalker.org/</loc>
-    <lastmod>2016-08-04T18:00:00-05:00</lastmod>
+    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -50,7 +56,13 @@
   
   <url>
     <loc>http://bitwalker.org/categories/elixir/</loc>
-    <lastmod>2016-08-04T18:00:00-05:00</lastmod>
+    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://bitwalker.org/categories/emacs/</loc>
+    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -74,7 +86,7 @@
   
   <url>
     <loc>http://bitwalker.org/posts/</loc>
-    <lastmod>2016-08-04T18:00:00-05:00</lastmod>
+    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -86,7 +98,7 @@
   
   <url>
     <loc>http://bitwalker.org/categories/programming/</loc>
-    <lastmod>2016-08-04T18:00:00-05:00</lastmod>
+    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -99,6 +111,11 @@
   <url>
     <loc>http://bitwalker.org/categories/scala/</loc>
     <lastmod>2014-07-10T10:30:05-05:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>http://bitwalker.org/tags/</loc>
     <priority>0</priority>
   </url>
   
