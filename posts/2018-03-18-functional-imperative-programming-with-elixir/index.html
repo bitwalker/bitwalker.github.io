@@ -303,12 +303,11 @@ end
   Intended for use within `while`, this will break out of iteration,
   returning the last accumulator value as the result of the `while` expression.
 
-      while true do
-        break
-      end
+      iex&gt; while true do break end
+      :ok
   end
   &quot;&quot;&quot;
-  defmacro break() do
+  defmacro break do
     quote do
       throw {unquote(__MODULE__), :break}
     end
@@ -317,50 +316,52 @@ end
   @doc &quot;&quot;&quot;
   A looping construct, looks like so:
 
-      # Simple infinite loop
-      :ok = while true do
+      # Simple infinite loop (never terminates)
+      while true do
         :ok
       end
 
       # Loop with accumulator
-      5 = while n = 1, n &lt; 5 do n -&gt; n + 1 end
+      iex&gt; while n = 1, n &lt; 5 do n -&gt; n + 1 end
+      5
 
       # Loop with timeout condition
-      :ok = while true do
-        :ok
-      after
-        30_000 -&gt;
-          exit(:timeout)
-      end
+      iex&gt; while true do
+      ...&gt;   :ok
+      ...&gt; after
+      ...&gt;   1_000 -&gt;
+      ...&gt;     :timeout
+      ...&gt; end
+      :timeout
 
       # Loop with timeout and accumulator
-      while n = 1, n &lt; 5 do
-        if n == 4 do
-          break
-        end
-        :timer.sleep(1_000)
-        n + 1
-      after
-        5_000 -&gt;
-          exit(:timeout)
-      end
+      iex&gt; while n = 1, n &lt; 5 do
+      ...&gt;   if n == 4 do
+      ...&gt;     break
+      ...&gt;   end
+      ...&gt;   :timer.sleep(1_000)
+      ...&gt;    n + 1
+      ...&gt; after
+      ...&gt;   5_000 -&gt;
+      ...&gt;     :timeout
+      ...&gt; end
+      4
 
-      # Loop with timeout condition but no body
-      while true do after 30_000 -&gt;
-        exit(:timeout)
-      end
+      # Loop with timeout condition but no body (exits with :timeout)
+      iex&gt; while true do after 1_000 -&gt; :timeout end
+      :timeout
   &quot;&quot;&quot;
   # A simple while loop
   defmacro while(predicate, do: block) do
     quote location: :keep do
-      while(_ = nil, unquote(predicate), [do: unquote(block), after: nil])
+      while(_ = :ok, unquote(predicate), [do: unquote(block), after: nil])
     end
   end
 
   # A loop + timeout block
   defmacro while(predicate, [do: block, after: after_block]) do
     quote location: :keep do
-      while(_ = nil, unquote(predicate), [do: unquote(block), after: unquote(after_block)])
+      while(_ = :ok, unquote(predicate), [do: unquote(block), after: unquote(after_block)])
     end
   end
 
@@ -374,10 +375,10 @@ end
   # An accumulator loop + timeout block
   defmacro while(init, predicate, [do: block, after: after_block]) do
     # Validate initializer
-    init_name =
+    {init_name, init_expr} =
       case init do
-        {:=, _, [init_name | _]} -&gt;
-          init_name
+        {:=, env, [init_name | init_expr]} -&gt;
+          {init_name, {:__block__, env, init_expr}}
         {_, env, _} -&gt;
           raise CompileError,
             description: &quot;expected an initializer of the form `n = &lt;expr&gt;`, got: #{Macro.to_string(init)}&quot;,
@@ -412,7 +413,7 @@ end
             line: Keyword.get(env, :line, __ENV__.line)
 
         nil -&gt;
-          {nil, nil}
+          {nil, :ok}
       end
 
     # Determine the type of while block we're building
@@ -420,7 +421,7 @@ end
       case block do
         # Empty block, i.e. `while true do after ... end`
         {:__block__, _, []} -&gt;
-          {:empty, nil}
+          {:empty, :ok}
 
         # Has one or more accumulator patterns
         [{:-&gt;, _, [[_binding], _body]} | _] = blk -&gt;
@@ -431,14 +432,30 @@ end
           {:noacc, block}
       end
 
-    # Construct the body of the function when there is no timeout
-    no_timeout_body =
+    timeout_calc =
+      if is_nil(timeout) do
+        quote location: :keep, generated: true do
+          now = start_time
+        end
+      else
+        quote location: :keep, generated: true do
+          now = System.monotonic_time(:milliseconds)
+          elapsed = now - start_time
+          after_time = after_time - elapsed
+        end
+      end
+
+
+    # Construct the body of the function
+    body =
       case block_type do
         # If there is no `do` body, then skip it entirely
         :empty -&gt;
-          quote location: :keep do
+          quote location: :keep, generated: true do
             if unquote(predicate) do
-              f.(nil, nil, nil, f)
+              import unquote(__MODULE__), only: [break: 0]
+              unquote(timeout_calc)
+              f.(after_time, now, :ok, f)
             else
               :ok
             end
@@ -447,9 +464,12 @@ end
         # If we're not accumulating, skip the unnecessary pattern match
         # we need when managing the accumulator
         :noacc -&gt;
-          quote location: :keep do
+          quote location: :keep, generated: true do
             if unquote(predicate) do
-              f.(nil, nil, unquote(block), f)
+              import unquote(__MODULE__), only: [break: 0]
+              acc2 = unquote(block)
+              unquote(timeout_calc)
+              f.(after_time, now, acc2, f)
             else
               acc
             end
@@ -458,57 +478,16 @@ end
         # If we're managing an accumulator, we need to use the case
         # statement to
         :acc -&gt;
-          quote location: :keep do
+          quote location: :keep, generated: true do
             unquote(init_name) = acc
             if unquote(predicate) do
+              import unquote(__MODULE__), only: [break: 0]
               acc2 =
                 case unquote(init_name) do
                   unquote(block)
                 end
-              f.(nil, nil, acc2, f)
-            else
-              acc
-            end
-          end
-      end
-
-    # Construct the body of the function when we need to track the timeout
-    with_timeout_body =
-      case block_type do
-        :empty -&gt;
-          quote location: :keep do
-            if unquote(predicate) do
-              now = System.monotonic_time(:milliseconds)
-              elapsed = now - start_time
-              f.(after_time - elapsed, now, nil, f)
-            else
-              :ok
-            end
-          end
-
-        :noacc -&gt;
-          quote location: :keep do
-            if unquote(predicate) do
-              acc2 = unquote(block)
-              now = System.monotonic_time(:milliseconds)
-              elapsed = now - start_time
-              f.(after_time - elapsed, now, acc2, f)
-            else
-              acc
-            end
-          end
-
-        :acc -&gt;
-          quote location: :keep do
-            unquote(init_name) = acc
-            if unquote(predicate) do
-              acc2 =
-                case unquote(init_name) do
-                  unquote(block)
-                end
-              now = System.monotonic_time(:milliseconds)
-              elapsed = now - start_time
-              f.(after_time - elapsed, now, acc2, f)
+              unquote(timeout_calc)
+              f.(after_time, now, acc2, f)
             else
               acc
             end
@@ -520,19 +499,12 @@ end
     # not warned
     quote location: :keep, generated: true do
       fun = fn
-        # Infinite timeout
-        nil, _start_time, acc, f -&gt;
-          try do
-            unquote(no_timeout_body)
-          catch
-            :throw, {unquote(__MODULE__), :break} -&gt;
-              acc
-          end
-
-        # While we haven't timed out
+        # Since nil is always &gt; 0 due to Erlang sort order
+        # We can use this to represent both infinite timeouts, and
+        # finite timeouts which haven't expired
         after_time, start_time, acc, f when after_time &gt; 0 -&gt;
           try do
-            unquote(with_timeout_body)
+            unquote(body)
           catch
             :throw, {unquote(__MODULE__), :break} -&gt;
               acc
@@ -547,7 +519,7 @@ end
           end
       end
       now = System.monotonic_time(:milliseconds)
-      fun.(unquote(timeout), now, unquote(init), fun)
+      fun.(unquote(timeout), now, unquote(init_expr), fun)
     end
   end
 end
