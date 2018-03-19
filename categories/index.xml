@@ -6,7 +6,6 @@
     <description>Recent content in Categories on Bitwalker</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <copyright>2016 Paul Schoenfelder</copyright>
     
 	<atom:link href="http://bitwalker.org/categories/index.xml" rel="self" type="application/rss+xml" />
     
@@ -23,7 +22,7 @@
     <item>
       <title>Elixir</title>
       <link>http://bitwalker.org/categories/elixir/</link>
-      <pubDate>Mon, 28 Aug 2017 21:19:00 -0500</pubDate>
+      <pubDate>Sun, 18 Mar 2018 11:00:00 -0600</pubDate>
       
       <guid>http://bitwalker.org/categories/elixir/</guid>
       <description></description>
@@ -57,6 +56,15 @@
     </item>
     
     <item>
+      <title>Macros</title>
+      <link>http://bitwalker.org/categories/macros/</link>
+      <pubDate>Sun, 18 Mar 2018 11:00:00 -0600</pubDate>
+      
+      <guid>http://bitwalker.org/categories/macros/</guid>
+      <description></description>
+    </item>
+    
+    <item>
       <title>Play</title>
       <link>http://bitwalker.org/categories/play/</link>
       <pubDate>Thu, 10 Jul 2014 10:30:05 -0500</pubDate>
@@ -77,7 +85,7 @@
     <item>
       <title>Programming</title>
       <link>http://bitwalker.org/categories/programming/</link>
-      <pubDate>Mon, 28 Aug 2017 21:19:00 -0500</pubDate>
+      <pubDate>Sun, 18 Mar 2018 11:00:00 -0600</pubDate>
       
       <guid>http://bitwalker.org/categories/programming/</guid>
       <description></description>

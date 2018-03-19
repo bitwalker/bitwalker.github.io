@@ -1,0 +1,736 @@
+    <!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="author" content="Paul Schoenfelder">
+		<meta name="description" content="Stuff about things">
+		<meta name="generator" content="Hugo 0.37.1" />
+		<title>Functional Imperative Programming With Elixir &middot; Bitwalker</title>
+		<link rel="shortcut icon" href="http://bitwalker.org/images/favicon.ico">
+		<link rel="stylesheet" href="http://bitwalker.org/css/style.css">
+		<link rel="stylesheet" href="http://bitwalker.org/css/highlight.css">
+		<link rel="stylesheet" href="http://bitwalker.org/css/monosocialiconsfont.css">
+        <link rel="stylesheet" href="//fonts.googleapis.com/css?subset=latin,cyrillic-ext,latin-ext,cyrillic&family=Open+Sans+Condensed:300|Open+Sans:400,600,400italic,600italic|Merriweather:400,300,300italic,400italic,700,700italic|Roboto+Slab:400,300" />
+		
+		<link href="http://bitwalker.org/index.xml" rel="alternate" type="application/rss+xml" title="Bitwalker" />
+		
+	</head>
+
+    <body>
+       <nav class="main-nav">
+	
+	
+		<a href='http://bitwalker.org/'> <span class="arrow">←</span>Home</a>
+	
+
+	
+	<a class="cta" href="http://bitwalker.org/index.xml">Subscribe</a>
+	
+</nav>
+
+
+        <section id="wrapper">
+            <article class="post">
+                <header>
+                    <h1>Functional Imperative Programming With Elixir</h1>
+                    <h2 class="headline">March 18, 2018</h2>
+                </header>
+                <section id="post-body">
+                    
+
+<p>I recently found myself wishing for the simple convenience of a <code>while</code> loop in Elixir. I had a test where I wanted to loop and test a condition, and either break out of that loop, or time out after some period. Writing this in the form of a recursive function is relatively easy, but is not really fully general:</p>
+
+<pre><code class="language-elixir">def while(predicate, timeout) 
+  when is_function(predicate, 0) and is_integer(timeout) do
+  while(predicate, timeout, System.monotonic_time(:milliseconds))
+end
+defp while(predicate, timeout, started) when timeout &gt; 0 do
+  if predicate.() do
+    now = System.monotonic_time(:milliseconds)
+    elapsed = now - started
+    while(predicate, timeout - elapsed, now)
+  else
+    :ok
+  end
+end
+defp while(_predicate, _timeout, _started) do
+  exit(:timeout)
+end
+</code></pre>
+
+<p>You could then use this in a test like so:</p>
+
+<pre><code class="language-elixir">test &quot;wait until node is available&quot;, %{peer: some_node} do
+  assert :ok = while(fn -&gt; Node.ping(some_node) != :ping end, 30_000)
+end
+</code></pre>
+
+<p>This would loop until <code>Node.ping/1</code> returns <code>:ping</code>, or 30 seconds passes, at which point it would exit and fail the test. That&rsquo;s&hellip;acceptable, but it reads a bit weird, and actually has a rather awkward issue in that we can&rsquo;t slow the loop down to only check once a second, rather than as fast as the runtime will execute <code>ping</code>. To do that, we&rsquo;d need to extend the definition of <code>while</code> to support another function argument, which would be executed if the predicate returns true, and would allow us to insert a call to <code>:timer.sleep/1</code> or something on each iteration.</p>
+
+<h1 id="let-the-incantations-begin">Let The Incantations Begin..</h1>
+
+<p>As soon as I saw this, I knew I was going to end up writing a macro for it. First, <code>while</code> is a familiar concept coming from imperative languages, and though technically not needed in Elixir, it does still have a place as a high-level abstraction of a common form of recursive function, where you need to loop until some condition is true, and reimplementing that from scratch each time is a bit annoying. Secondly, with a macro, we could make this look just like <code>while</code> in an imperative language, and once I saw it in my head, I knew that at the very least it was going to make for a fun experiment. I also figured that while I was building the macro, I could push the limits a bit and see if we can add mutation to the implementation as well (not real mutability, but at least the semblance of it).</p>
+
+<p>We want this macro to embrace the functional aspects of the language, while providing some of the conveniences of the imperative approach. As a bonus, building in the concept of timeouts to the implementation makes our version of <code>while</code> far more powerful than your average implementation! Let&rsquo;s take a look at a few examples of what I had in mind:</p>
+
+<pre><code class="language-elixir"># Simple infinite loop
+while true do
+  :ok
+end
+
+# Loop with initializer + accumulator
+5 = while n = 1, n &lt; 5 do 
+  n -&gt; n + 1
+end
+
+# Loop with timeout condition
+while true do
+  :ok
+after
+  30_000 -&gt;
+    exit(:timeout)
+end
+
+# Loop with timeout and initializer + accumulator
+while n = 1, n &lt; 5 do
+  if n == 4 do
+    break
+  end
+  :timer.sleep(1_000)
+  n + 1
+after
+  5_000 -&gt;
+    exit(:timeout)
+end
+
+# Loop with timeout condition but no body
+while true do after 30_000 -&gt;
+  exit(:timeout)
+end
+</code></pre>
+
+<p>Much more familiar! There are a few syntactic differences from your standard <code>while</code> in something C-like, but for the most part there are really no surprises here. I also wanted this to compile down to a form that was actually optimal, i.e., I didn&rsquo;t want anonymous functions for the predicate, body, and after body, where each iteration would result in at least two function calls. Instead, it should compile down to a recursive function, with the minimal amount of branching based on which parts of the construct where used, e.g., no timeout means that we don&rsquo;t need to branch on the timeout value and calculate new times, etc.</p>
+
+<h1 id="recursive-anonymous-functions-in-elixir">Recursive Anonymous Functions in Elixir</h1>
+
+<p>The first problem here is that in order to use this in any arbitrary location, we can&rsquo;t define a named function at the point <code>while</code> is invoked, as <code>def</code> isn&rsquo;t valid within another <code>def</code>; instead, we have to use an anonymous function, and Elixir does not yet support recursively invoking an anonymous function by the name it is bound to (even though Erlang does). Instead, we have to transform our definition of the anonymous function to combinator form, i.e., it has no free variables, and only refers to its parameters. Here is what I mean:</p>
+
+<pre><code class="language-elixir"># Doesn't work, refers to the free variable `while`
+# which is bound _after_ the closure for the fun is created
+while = fn predicate -&gt; 
+  if predicate.() do
+    while(predicate)
+  else
+    :ok
+  end
+end
+while.(fn -&gt; true end)
+
+# This does, no free variables, we pass in the fun
+# to itself, so that it can call itself recursively
+while = fn pred, while -&gt;
+  if predicate.() do
+    while.(predicate, while)
+  else
+    :ok
+  end
+end
+while.(fn -&gt; true end, while)
+</code></pre>
+
+<p>So we know what we&rsquo;ll have to structure the macro implementation to generate an anonymous function in combinator form. We have a solution for our first problem!</p>
+
+<h1 id="our-initial-implementation">Our Initial Implementation</h1>
+
+<p>The next problem can be seen in the example above, the <code>predicate</code> is another anonymous function, but what we really want is for the predicate to be a part of the definition of the <code>while</code> function itself, so that we avoid the function call overhead. This is pretty straightforward though, we just will just inject it into the definition of <code>while</code>. Let&rsquo;s stop here and implement the macro up until this point:</p>
+
+<pre><code class="language-elixir">defmacro while(predicate, do: body) do
+  quote location: :keep, generated: true do
+    whilef = fn whilef -&gt;
+      if unquote(predicate) do
+        unquote(body)
+        whilef.(whilef)
+      else
+        :ok
+      end
+    end
+    whilef.(whilef)
+  end
+end
+
+# Usage Example
+while Node.ping(some_node) != :ping do
+  :timer.sleep(1_000)
+end
+</code></pre>
+
+<p>Not bad! A few notes:</p>
+
+<ul>
+<li>We use <code>generated: true</code> to prevent compiler warnings if we&rsquo;re careless about how we generate code for the function and end up with unused bindings or something. Not strictly necessary, but useful.</li>
+<li>If you aren&rsquo;t familiar, <code>location: :keep</code> makes sure the file/line from the quotation are what end up in traces, rather than the location the macro is invoked from. This means if we make a mistake, we&rsquo;ll know where in the macro implementation things went south.</li>
+<li>If you aren&rsquo;t familiar with <code>quote</code> and <code>unquote</code>, I would stop here and go read the <code>quote</code> docs, either via <code>h quote</code> in <code>iex</code> or on HexDocs <a href="https://hexdocs.pm/elixir/Kernel.SpecialForms.html#quote/2">here</a></li>
+</ul>
+
+<p>There are some problems here though, not to mention we haven&rsquo;t yet added support for timeouts or &ldquo;mutable&rdquo; state. This is usable, but not ideal.</p>
+
+<h1 id="problem-emulating-mutable-state">Problem: Emulating Mutable State</h1>
+
+<p>One of the biggest problems lies with the predicate itself: what if we changed the example to this:</p>
+
+<pre><code class="language-elixir">n = 1
+while n &lt; 5 do
+  n + 1
+end
+</code></pre>
+
+<p>Can you spot the problem? The issue is that running this will loop forever, as <code>n</code> will always equal <code>1</code>, the predicate will always see <code>1 &lt; 5</code>, and <code>n + 1</code> will always calculate <code>2</code>. The state from the body of <code>while</code> does not affect the next evaluation of the predicate. We need to ensure that state is accumulated, by making the result of the body be passed along as another parameter to the <code>whilef</code> function; which also means we have to make the initializer part of <code>while</code>, so that we can formally introduce <code>n</code> into the scope of both the predicate and the body, otherwise we can&rsquo;t ensure that <code>n</code> is bound to the updated value, as it is out of scope. Let&rsquo;s see what our macro looks like now:</p>
+
+<pre><code class="language-elixir">defmacro while({:=,_[i|_]}=init, predicate, do: [{:-&gt;,_,_}] = body) do
+  quote location: :keep, generated: true do
+    whilef = fn whilef, acc -&gt;
+      unquote(i) = acc
+      if unquote(predicate) do
+        acc2 =
+          case unquote(i) do
+            unquote(body)
+          end
+        whilef.(whilef, acc2)
+      else
+        acc
+      end
+    end
+    whilef.(whilef, _ = unquote(init))
+  end
+end
+
+# Usage Example
+5 = while n = 1, n &lt; 5 do n -&gt;
+  n + 1
+end
+</code></pre>
+
+<p>In the above, we ensure the initializer is just a simple assignment by matching on the AST, and for simplicity right now, I&rsquo;m also matching to ensure that the body accepts the accumulator value using case clause syntax (e.g. <code>n -&gt; ...</code>). You&rsquo;ll notice we also bound the name of the initializer, so that we can cheat a little with the <code>unquote(i) = acc</code> line, which, using our example, resets <code>n</code> to the current state of the accumulator on each iteration. The bit at the bottom, <code>_ = unquote(init)</code> will expand to <code>_ = n = 1</code>, which seems strange, but ensures that we don&rsquo;t get a warning about an unused binding.</p>
+
+<h1 id="problem-supporting-timeouts">Problem: Supporting Timeouts</h1>
+
+<p>Of course the problem we have now is that our macro requires the use of the initializer and accumulating state in the body, still doesn&rsquo;t support <code>after</code>, and isn&rsquo;t flexible in the way I originally envisioned. This is fine though, since we&rsquo;re about to fix that!</p>
+
+<p>First, let&rsquo;s add support for <code>after</code>:</p>
+
+<pre><code class="language-elixir">defmacro while({:=,_[i|_]}=init, predicate, [do: [{:-&gt;,_,_}] = body, after: [{:-&gt;,_,[[timeout],after_body]}]) do
+  quote location: :keep, generated: true do
+    whilef = fn 
+      whilef, acc, timeout, started when timeout &gt; 0 -&gt;
+        unquote(i) = acc
+        if unquote(predicate) do
+          acc2 =
+            case unquote(i) do
+              unquote(body)
+            end
+          now = System.monotonic_time(:milliseconds)
+          elapsed = now - started
+          whilef.(whilef, acc2, timeout - elapsed, now)
+        else
+          acc
+        end
+      _, _, _, _ -&gt;
+        unquote(after_body)
+    end
+    now = System.monotonic_time(:milliseconds)
+    whilef.(whilef, _ = unquote(init), unquote(timeout), now)
+  end
+end
+
+# Usage Example
+5 = while n = 1, n &lt; 5 do n -&gt;
+  n + 1
+after
+  5_000 -&gt;
+    exit(:timeout)
+end
+</code></pre>
+
+<p>Similar to the previous iteration of the macro, we&rsquo;re matching against the AST to ensure the <code>after</code> clause uses the <code>timeout -&gt; body</code> syntax, and that only one timeout clause is allowed. We&rsquo;re not validating the timeout, or dealing with invalid constructs very well though, for that we need to do the pattern matching in the macro body so that we can catch common mistakes and raise more helpful errors. You&rsquo;ll notice that we calculate the elapsed time on each iteration before continuing, that way we can just jump straight to the <code>after</code> clause if the timeout reaches zero.</p>
+
+<h1 id="a-complete-implementation">A Complete Implementation</h1>
+
+<p>We&rsquo;re almost done! We have a few items to address to make this a &ldquo;complete&rdquo; implementation:</p>
+
+<ul>
+<li>Put this all in a module and document it</li>
+<li>Support optional <code>after</code>, optional <code>do</code>, optional initializer/accumulator so that we can arrive at the various forms I originally sketched out</li>
+<li>Support multiple accumulator clauses within <code>do</code> so that pattern matching is supported.</li>
+<li>Compile to an optimal form, where no unnecessary function calls, branching, or work is performed</li>
+<li>Validate the constructs used so that invalid forms are not permitted and raise a useful compilation error, e.g. <code>after</code> can only accept a positive integer for a timeout, and only one timeout clause is allowed. We could theoretically support multiple, but I don&rsquo;t think that is useful for this exercise.</li>
+</ul>
+
+<p>Let&rsquo;s take a look at the final form with all of those points addressed:</p>
+
+<pre><code class="language-elixir">defmodule LanguageExtensions.While do
+  @moduledoc &quot;&quot;&quot;
+  Adds support for `while` to Elixir.
+
+  See the docs for `#{__MODULE__}.while/2` for more information.
+
+  ## Example
+
+      use #{__MODULE__}
+
+      ...
+
+      while n = 1, n &lt; 5 do n -&gt;
+        if n == 4 do
+          break
+        end
+        :timer.sleep(1_000)
+        n + 1
+      after
+        5_000 -&gt;
+          :timeout
+      end
+  &quot;&quot;&quot;
+
+  defmacro __using__(_) do
+    quote do
+      import unquote(__MODULE__)
+    end
+  end
+
+  @doc &quot;&quot;&quot;
+  Intended for use within `while`, this will break out of iteration,
+  returning the last accumulator value as the result of the `while` expression.
+
+      while true do
+        break
+      end
+  end
+  &quot;&quot;&quot;
+  defmacro break() do
+    quote do
+      throw {unquote(__MODULE__), :break}
+    end
+  end
+
+  @doc &quot;&quot;&quot;
+  A looping construct, looks like so:
+
+      # Simple infinite loop
+      :ok = while true do
+        :ok
+      end
+
+      # Loop with accumulator
+      5 = while n = 1, n &lt; 5 do n -&gt; n + 1 end
+
+      # Loop with timeout condition
+      :ok = while true do
+        :ok
+      after
+        30_000 -&gt;
+          exit(:timeout)
+      end
+
+      # Loop with timeout and accumulator
+      while n = 1, n &lt; 5 do
+        if n == 4 do
+          break
+        end
+        :timer.sleep(1_000)
+        n + 1
+      after
+        5_000 -&gt;
+          exit(:timeout)
+      end
+
+      # Loop with timeout condition but no body
+      while true do after 30_000 -&gt;
+        exit(:timeout)
+      end
+  &quot;&quot;&quot;
+  # A simple while loop
+  defmacro while(predicate, do: block) do
+    quote location: :keep do
+      while(_ = nil, unquote(predicate), [do: unquote(block), after: nil])
+    end
+  end
+
+  # A loop + timeout block
+  defmacro while(predicate, [do: block, after: after_block]) do
+    quote location: :keep do
+      while(_ = nil, unquote(predicate), [do: unquote(block), after: unquote(after_block)])
+    end
+  end
+
+  # An accumulator loop
+  defmacro while(init, predicate, do: block) do
+    quote location: :keep do
+      while(unquote(init), unquote(predicate), [do: unquote(block), after: nil])
+    end
+  end
+
+  # An accumulator loop + timeout block
+  defmacro while(init, predicate, [do: block, after: after_block]) do
+    # Validate initializer
+    init_name =
+      case init do
+        {:=, _, [init_name | _]} -&gt;
+          init_name
+        {_, env, _} -&gt;
+          raise CompileError,
+            description: &quot;expected an initializer of the form `n = &lt;expr&gt;`, got: #{Macro.to_string(init)}&quot;,
+            file: Keyword.get(env, :file, __ENV__.file),
+            line: Keyword.get(env, :line, __ENV__.line)
+      end
+
+    # Validate and extract timeout/after body
+    # Timeout must be a positive integer
+    # After body only allows one timeout clause
+    {timeout, after_block} =
+      case after_block do
+        [{:-&gt;, _, [[timeout], after_body]}] when is_integer(timeout) and timeout &gt;= 0-&gt;
+          {timeout, after_body}
+
+        [{:-&gt;, env, [[_], _after_body]}] -&gt;
+          raise CompileError,
+            description: &quot;expected a positive integer timeout in `after`&quot;,
+            file: Keyword.get(env, :file, __ENV__.file),
+            line: Keyword.get(env, :line, __ENV__.line)
+
+        [{:-&gt;, env, _}, _ | _] -&gt;
+          raise CompileError,
+            description: &quot;multiple timeouts are not supported in `after`&quot;,
+            file: Keyword.get(env, :file, __ENV__.file),
+            line: Keyword.get(env, :line, __ENV__.line)
+
+        [{_, env, _} | _] -&gt;
+          raise CompileError,
+            description: &quot;multiple timeouts are not supported in `after`&quot;,
+            file: Keyword.get(env, :file, __ENV__.file),
+            line: Keyword.get(env, :line, __ENV__.line)
+
+        nil -&gt;
+          {nil, nil}
+      end
+
+    # Determine the type of while block we're building
+    {block_type, block} =
+      case block do
+        # Empty block, i.e. `while true do after ... end`
+        {:__block__, _, []} -&gt;
+          {:empty, nil}
+
+        # Has one or more accumulator patterns
+        [{:-&gt;, _, [[_binding], _body]} | _] = blk -&gt;
+          {:acc, blk}
+
+        # No accumulator
+        _other -&gt;
+          {:noacc, block}
+      end
+
+    # Construct the body of the function when there is no timeout
+    no_timeout_body =
+      case block_type do
+        # If there is no `do` body, then skip it entirely
+        :empty -&gt;
+          quote location: :keep do
+            if unquote(predicate) do
+              f.(nil, nil, nil, f)
+            else
+              :ok
+            end
+          end
+
+        # If we're not accumulating, skip the unnecessary pattern match
+        # we need when managing the accumulator
+        :noacc -&gt;
+          quote location: :keep do
+            if unquote(predicate) do
+              f.(nil, nil, unquote(block), f)
+            else
+              acc
+            end
+          end
+
+        # If we're managing an accumulator, we need to use the case
+        # statement to
+        :acc -&gt;
+          quote location: :keep do
+            unquote(init_name) = acc
+            if unquote(predicate) do
+              acc2 =
+                case unquote(init_name) do
+                  unquote(block)
+                end
+              f.(nil, nil, acc2, f)
+            else
+              acc
+            end
+          end
+      end
+
+    # Construct the body of the function when we need to track the timeout
+    with_timeout_body =
+      case block_type do
+        :empty -&gt;
+          quote location: :keep do
+            if unquote(predicate) do
+              now = System.monotonic_time(:milliseconds)
+              elapsed = now - start_time
+              f.(after_time - elapsed, now, nil, f)
+            else
+              :ok
+            end
+          end
+
+        :noacc -&gt;
+          quote location: :keep do
+            if unquote(predicate) do
+              acc2 = unquote(block)
+              now = System.monotonic_time(:milliseconds)
+              elapsed = now - start_time
+              f.(after_time - elapsed, now, acc2, f)
+            else
+              acc
+            end
+          end
+
+        :acc -&gt;
+          quote location: :keep do
+            unquote(init_name) = acc
+            if unquote(predicate) do
+              acc2 =
+                case unquote(init_name) do
+                  unquote(block)
+                end
+              now = System.monotonic_time(:milliseconds)
+              elapsed = now - start_time
+              f.(after_time - elapsed, now, acc2, f)
+            else
+              acc
+            end
+          end
+      end
+
+    # Construct the actual function, tag the quoted AST with
+    # generated: true to make sure unused bindings and such are
+    # not warned
+    quote location: :keep, generated: true do
+      fun = fn
+        # Infinite timeout
+        nil, _start_time, acc, f -&gt;
+          try do
+            unquote(no_timeout_body)
+          catch
+            :throw, {unquote(__MODULE__), :break} -&gt;
+              acc
+          end
+
+        # While we haven't timed out
+        after_time, start_time, acc, f when after_time &gt; 0 -&gt;
+          try do
+            unquote(with_timeout_body)
+          catch
+            :throw, {unquote(__MODULE__), :break} -&gt;
+              acc
+          end
+
+        _after_time, _start_time, acc, _f -&gt;
+          try do
+            unquote(after_block)
+          catch
+            :throw, {unquote(__MODULE__), :break} -&gt;
+              acc
+          end
+      end
+      now = System.monotonic_time(:milliseconds)
+      fun.(unquote(timeout), now, unquote(init), fun)
+    end
+  end
+end
+</code></pre>
+
+<p>That&rsquo;s it! I&rsquo;ve documented the code a bit with comments describing the various changes, but I hope for the most part you will be able to see the evolution from our last version. We did the following:</p>
+
+<ul>
+<li>Defined new function heads for <code>while/2</code> and <code>while/3</code> which match on the various forms of the <code>while</code> macro and ultimately delegate to a single implementation of <code>while/3</code>. This is how we make some of the parts optional and ease the implementation.</li>
+<li>We extracted the function head matches into the body so that we can match on valid uses of different constructs and raise compilation errors with useful descriptions and file/line numbers for debugging.</li>
+<li>We break apart the two major types of <code>while</code> usage, with timeouts, and without timeouts, and construct the body differently based on the type so that no extra work is done while iterating</li>
+<li>We break apart the type of <code>while</code> body, whether it is empty, accumulates state, or does not accumulate state, and construct the body optimally for each case. This is especially necessary if we want to support optional accumulation - the <code>pat -&gt; expr</code> syntax will not be valid outside of the <code>case</code> block we wrap it in when building up the accumulator form, but we want to avoid the branch + match if we don&rsquo;t care about the accumulator and just want to return the value of the body on each iteration. So we base the type of body we generate based on the syntax of the <code>do</code> block.</li>
+<li>Defined <code>break/0</code> which just throws a special error for us to catch and break out of the loop early. We do this transparently to the user of <code>while</code>, and do so in such a way that the accumulated value is returned.</li>
+</ul>
+
+<p>The final version of the macro is a bit long due to the optimizations we are performing. If one wanted a simpler implementation, you could support fewer optional parts, or be willing to calculate elapsed time on each iteration and always branch on the accumulator so that the accumlator/no accumulator forms are the same. In any case, I wanted to pull out all of the stops and see where we got.</p>
+
+<h1 id="wrap-up">Wrap Up</h1>
+
+<p>I&rsquo;m not sure I would recommend using this macro generally, but it was a fun experiment, and I love the opportunity to stretch the macro muscle a bit, especially with one like this which really shows how you extend the syntax of the language via macros, just like how <code>with</code> and <code>for</code> are built.</p>
+
+<p>I hope you enjoyed reading this! It isn&rsquo;t often I write something up, but this seemed like too much fun to resist :)</p>
+
+<h1 id="macro-tips">Macro Tips</h1>
+
+<p>A few useful tips for writing macros:</p>
+
+<ul>
+<li>Have two <code>iex</code> windows open, one for testing, one for docs. I&rsquo;m constantly experimenting with quoting expressions and reviewing the AST, compiling and importing the macro I&rsquo;m working on so that I can test it, and using <code>h &lt;whatever&gt;</code> to pull up docs to double check what I&rsquo;m doing</li>
+<li>To see what kind of AST is produced for some syntax, just use one of the <code>iex</code> windows and type in <code>quote do &lt;your expr&gt; end</code> and it will spit out the quoted form of the expression.</li>
+<li>You can get the pretty printed form of a quoted expression for easier reading with <code>quoted |&gt; Macro.to_string |&gt; IO.puts</code>. As of 1.6 you can also do <code>quoted |&gt; Macro.to_string |&gt; Code.format_string! |&gt; IO.puts</code> to format the code using the new formatter.</li>
+<li>If there is a compile error coming from your macro, get a quoted usage of it with <code>quote do &lt;expr&gt; end</code>, and use <code>Macro.expand_once(quoted, __ENV__)</code> to see a single expansion of the macro, which will help you see how the macro is actually being converted into Elixir syntax. You can chain this call as well, or just use <code>Macro.expand(quoted, __ENV__)</code> to see the fully expanded AST.</li>
+<li>Read up on quoting, unquoting, splicing, and <code>:bind_quoted</code> before you get started. Understanding those are critical to not only know what you are doing, but also saving yourself a lot of pain when trying to figure out why something isn&rsquo;t working the way you thought it would. Things can get quite complex when you are working with nested macros, which is almost always the case anyway, as much of Elixir syntax itself is written using macros. Anytime you find yourself confused by the behavior of your macro, it pays to go back and re-read the docs, because it is almost certainly a case of something you overlooked.</li>
+</ul>
+
+                </section>
+            </article>
+            <footer id="post-meta" class="clearfix">
+                <a href="https://twitter.com/gotbones">
+                        <img class="avatar" src="http://bitwalker.org/images/avatar.png">
+                        <div>
+                            <span class="dark">Paul Schoenfelder</span>
+                            <span>All hail our Erlang overlords</span>
+                        </div>
+                    </a>
+                <section id="sharing">
+                    <a class="twitter" href="https://twitter.com/intent/tweet?text=http%3a%2f%2fbitwalker.org%2fposts%2f2018-03-18-functional-imperative-programming-with-elixir%2f - Functional%20Imperative%20Programming%20With%20Elixir by @gotbones"><span class="icon-twitter"> Tweet</span></a>
+
+<a class="facebook" href="#" onclick="
+    window.open(
+      'https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href),
+      'facebook-share-dialog',
+      'width=626,height=436');
+    return false;"><span class="icon-facebook-rect"> Share</span>
+</a>
+
+                </section>
+            </footer>
+
+            
+
+            <ul id="post-list" class="archive readmore">
+    <h3>Read more</h3>
+    
+    
+        
+        <li>
+            <a href="http://bitwalker.org/posts/2018-03-18-functional-imperative-programming-with-elixir/">Functional Imperative Programming With Elixir<aside class="dates">Mar 18</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="http://bitwalker.org/posts/2017-08-28-open-with-iex-and-emacs/">Using Elixir 1.5&#39;s open command with Emacs.app<aside class="dates">Aug 28</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="http://bitwalker.org/posts/2016-08-04-clustering-in-kubernetes/">Elixir/Erlang Clustering in Kubernetes<aside class="dates">Aug 4</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="http://bitwalker.org/posts/2016-07-21-distillery-vs-exrm-vs-relx/">Distillery vs. Exrm vs. Relx<aside class="dates">Jul 21</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="http://bitwalker.org/posts/2014-07-10-scala-streaming-file-uploads/">Proxied Streaming Uploads with Scala/Play<aside class="dates">Jul 10</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="http://bitwalker.org/posts/2014-03-11-releases-for-elixir/">Releases For Elixir<aside class="dates">Mar 20</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="http://bitwalker.org/posts/2014-03-10-what-is-elixir-and-why-do-i-care/">What Is Elixir, and Why Do I Care?<aside class="dates">Mar 10</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="http://bitwalker.org/posts/2013-08-10-learn-by-example-scala-parser-combinators/">Learn by Example: Scala Parser Combinators<aside class="dates">Aug 10</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="http://bitwalker.org/">Bitwalker<aside class="dates">Mar 18</aside></a>
+        </li>
+        
+   
+    
+        
+        <li>
+            <a href="http://bitwalker.org/categories/">Categories<aside class="dates">Jan 1</aside></a>
+        </li>
+        
+   
+</ul>
+            <footer id="footer">
+    
+        
+<div id="social">
+    
+    <a class="symbol" href="">
+        circledribble
+    </a>
+    
+    <a class="symbol" href="">
+        circlefacebook
+    </a>
+    
+    <a class="symbol" href="https://github.com/bitwalker">
+        circlegithub
+    </a>
+    
+    <a class="symbol" href="https://twitter.com/gotbones">
+        circletwitterbird
+    </a>
+    
+</div>
+
+    
+    <p class="small">
+    
+        2016 Paul Schoenfelder
+    
+    </p>
+</footer>
+
+        </section>
+
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="http://bitwalker.org/js/main.js"></script>
+<script src="http://bitwalker.org/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script>
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+ga('create', 'UA-41198216-1', 'auto');
+ga('send', 'pageview');
+</script>
+
+
+    </body>
+</html>

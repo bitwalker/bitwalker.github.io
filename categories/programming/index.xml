@@ -6,11 +6,20 @@
     <description>Recent content in Programming on Bitwalker</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <copyright>2016 Paul Schoenfelder</copyright>
-    <lastBuildDate>Mon, 28 Aug 2017 21:19:00 -0500</lastBuildDate>
+    <lastBuildDate>Sun, 18 Mar 2018 11:00:00 -0600</lastBuildDate>
     
 	<atom:link href="http://bitwalker.org/categories/programming/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Functional Imperative Programming With Elixir</title>
+      <link>http://bitwalker.org/posts/2018-03-18-functional-imperative-programming-with-elixir/</link>
+      <pubDate>Sun, 18 Mar 2018 11:00:00 -0600</pubDate>
+      
+      <guid>http://bitwalker.org/posts/2018-03-18-functional-imperative-programming-with-elixir/</guid>
+      <description>I recently found myself wishing for the simple convenience of a while loop in Elixir. I had a test where I wanted to loop and test a condition, and either break out of that loop, or time out after some period. Writing this in the form of a recursive function is relatively easy, but is not really fully general:
+def while(predicate, timeout) when is_function(predicate, 0) and is_integer(timeout) do while(predicate, timeout, System.</description>
+    </item>
     
     <item>
       <title>Using Elixir 1.5&#39;s open command with Emacs.app</title>

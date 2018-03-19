@@ -3,6 +3,11 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
+    <loc>http://bitwalker.org/posts/2018-03-18-functional-imperative-programming-with-elixir/</loc>
+    <lastmod>2018-03-18T11:00:00-06:00</lastmod>
+  </url>
+  
+  <url>
     <loc>http://bitwalker.org/posts/2017-08-28-open-with-iex-and-emacs/</loc>
     <lastmod>2017-08-28T21:19:00-05:00</lastmod>
   </url>
@@ -39,7 +44,7 @@
   
   <url>
     <loc>http://bitwalker.org/</loc>
-    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
+    <lastmod>2018-03-18T11:00:00-06:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -56,7 +61,7 @@
   
   <url>
     <loc>http://bitwalker.org/categories/elixir/</loc>
-    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
+    <lastmod>2018-03-18T11:00:00-06:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -79,6 +84,12 @@
   </url>
   
   <url>
+    <loc>http://bitwalker.org/categories/macros/</loc>
+    <lastmod>2018-03-18T11:00:00-06:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
     <loc>http://bitwalker.org/categories/play/</loc>
     <lastmod>2014-07-10T10:30:05-05:00</lastmod>
     <priority>0</priority>
@@ -86,7 +97,7 @@
   
   <url>
     <loc>http://bitwalker.org/posts/</loc>
-    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
+    <lastmod>2018-03-18T11:00:00-06:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -98,7 +109,7 @@
   
   <url>
     <loc>http://bitwalker.org/categories/programming/</loc>
-    <lastmod>2017-08-28T21:19:00-05:00</lastmod>
+    <lastmod>2018-03-18T11:00:00-06:00</lastmod>
     <priority>0</priority>
   </url>
   
